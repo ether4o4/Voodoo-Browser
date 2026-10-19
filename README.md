@@ -1,0 +1,65 @@
+# Voodoo Browser
+
+A personal Android browser with built-in AI chat, an editable userscript workspace, a music workbench, and a completion-triggered Suno loop.
+
+The app is new code built around **Android System WebView**, the Chromium-based web engine supplied by Android. It is not a patched Firefox APK or a new rendering engine. The homepage banner reads **“Voodoo browser”**; Settings lets you place your own image above it.
+
+## What is built in
+
+- **AI chat:** Venice, OpenAI, OpenRouter, Groq, Anthropic, Gemini, and custom HTTPS API endpoints. Each preset saves its own key and model. OpenAI-compatible, Anthropic Messages, and Gemini GenerateContent adapters are implemented. Model lists load from the configured provider.
+- **AI-assisted scripts:** complete generated userscripts appear in the draft editor. Review, save, enable, or run once on the target website. Drafts and recent draft history save locally.
+- **Userscript workspace:** import/export `.user.js`; per-script switches; `@match`, `@exclude-match`, `@run-at`; local GM value/style helpers. This is a supported subset of Tampermonkey behavior, not the Tampermonkey extension or a full extension platform.
+- **Writing Workbench:** lyric checks, protected lines, presets, saved versions, attempt notes, and JSON backups. Send a selected draft to Suno explicitly.
+- **Non-AI completion loop:** learn Create/loading/completed indicators, confirm completion, wait a random delay, and start another generation. Has Stop and an optional run cap. It never starts itself.
+- **Browser tools:** eight tabs, bookmarks, site notes, reader view, clean-link copy, find, text zoom, desktop mode, share, PDF printing, HTTPS downloads, file selection, and a keep-screen-awake switch.
+- **Persistence:** settings, scripts, drafts, provider keys and the browsing profile remain when a newer APK with the same application ID/signing key is installed over the existing app.
+
+## First use
+
+1. Install the signed release APK on Android 10 or newer. Keep Android System WebView updated.
+2. Open **AI → Providers**, choose a provider, enter its API key, load or type a text/code model ID, and save.
+3. Open a website, then **AI → AI chat**. Describe the script. Page text and element labels are shared only when you select the page-context checkbox. The current script and chat are sent to the selected provider.
+4. Open **Scripts** to review the generated draft. Use **Run once on target** to try it, or save it with automatic execution enabled for matching sites. Reload a website to apply automatic changes or remove a previous script's timers/DOM changes.
+
+Use **Settings → Homepage image** to choose the artwork above the homepage title. No image from the owner has been received in this initial build, so it uses a typographic V mark until an image is selected or bundled.
+
+## Suno loop
+
+Open Suno and sign in. The 4GA panel contains the loop. Start one generation manually, then teach it the Create button, a loading indicator, and a completed indicator. Start the loop while a generation is loading. It requires loading to clear **and** a new completed result; then it waits within your min/max delay and clicks Create once. Keep the Suno tab visible. Tab changes, app backgrounding, timeouts, and recognized errors stop the loop. Randomness applies to the delay, not the prompt.
+
+The loop uses Suno's normal generation credits. Site markup or login behavior may change; the live signed-in Suno flow has not been tested on a physical phone in this build.
+
+## Keys, scripts, and updates
+
+API keys are encrypted with Android Keystore and used by native HTTPS networking. Website JavaScript cannot read them. Keys are excluded from exports and Android backup/transfer. Redirects are rejected before forwarding credentials. Changing an API base URL requires re-entering its key.
+
+Userscripts run in the website's JavaScript context, in the top frame. GM values use that site's local storage; they are not a secret vault. Native origin checks scope the privileged workspace bridge to the app's internal HTTPS origin. Internal pages are excluded from user-script execution. No third-party script store, remote `@require`, or privileged `GM_xmlhttpRequest` implementation is included.
+
+The **private signing recovery archive supplied separately** is needed to sign future release updates. Never commit it, its password, provider keys, or personal backups here. Increase `versionCode` for updates and keep `com.ether4o4.voodoo` and the signing key unchanged. Engine updates come through Android System WebView; app/tool updates come through new Voodoo APKs. There is no automatic app updater in this version. Uninstalling or clearing app data deletes the local profile.
+
+## Build
+
+Requires JDK 17 and Android SDK platform 36/build tools. Gradle 8.13 and Android Gradle Plugin 8.13.2 are pinned.
+
+```sh
+./gradlew assembleRelease lintRelease
+npm ci
+npm test
+```
+
+`app/build/outputs/apk/release/app-release-unsigned.apk` is unsigned. Sign with your private key:
+
+```sh
+python3 tools/sign_release.py --keystore /private/voodoo-release.jks \
+  --credentials /private/signing.json --out Voodoo-Browser.apk
+```
+
+The debug variant has application ID `com.ether4o4.voodoo.dev` so CI/debug signing does not conflict with the signed release. CI produces a development APK and an unsigned release APK; neither should be mistaken for a release signed with your private update key.
+
+## Validation and current limits
+
+The Android debug/release builds and Android lint are checked locally. The JavaScript suite covers lyric protection, backups, the completion loop, script URL rules, helpers, editor persistence, and AI-to-draft behavior. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
+
+This is an **initial personal-use alpha**, not a production-audited browser. No physical-device or emulator UI run, real provider-key request, or live Suno generation has been completed in this environment. The phone's USB connection is not exposed to the build environment. Some identity providers disallow embedded-browser sign-in. Camera, microphone, geolocation, password-manager integration, external-page blob downloads, and full browser-extension compatibility are not implemented. Normal HTTPS downloads and native Workbench/script/backup exports are implemented.
+
+All AI adapters are text chat adapters; “custom endpoint” supports the three implemented wire formats, not every possible proprietary API. Chat-app subscriptions are separate from provider API access/billing.

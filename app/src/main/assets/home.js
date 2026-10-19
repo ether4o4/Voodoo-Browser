@@ -1,7 +1,38 @@
-document.addEventListener('DOMContentLoaded',async()=>{
-  const $=id=>document.getElementById(id),status=e=>$('status').textContent=e.message;
-  $('search-form').onsubmit=e=>{e.preventDefault();Host.call('navigate',{text:$('search').value}).catch(status);};
-  document.querySelectorAll('[data-url]').forEach(b=>b.onclick=()=>Host.call('open-url',{url:b.dataset.url}).catch(status));
-  $('ai').onclick=()=>Host.call('open-studio').catch(status);$('write').onclick=()=>Host.call('open-workbench').catch(status);
-  try{const options=await Host.call('get-store',{key:'options'});if(options?.homeImage?.startsWith('data:image/')){$('home-image').src=options.homeImage;$('home-art').hidden=false;$('home-mark').hidden=true;}}catch{}
+document.addEventListener('DOMContentLoaded',()=>{
+  'use strict';
+  const $=id=>document.getElementById(id),P=VoodooPins,fail=e=>$('status').textContent=e.message||String(e),run=fn=>()=>Promise.resolve().then(fn).catch(fail);
+  let state={pins:[],names:P.names,active:'all'},selected=null,editing=null,moving=null,globe=null,serial=0,active=true,rotating=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const visible=()=>state.pins.filter(p=>state.active==='all'||p.group===state.active);
+  const dot=group=>{const d=document.createElement('span');d.className='pin-dot';d.style.background=P.colors[group];return d;};
+  function render(){
+    $('workspace-filters').replaceChildren();for(const group of ['all',...P.groups]){const b=document.createElement('button');b.textContent=group==='all'?'All pins':state.names[group];if(group!=='all')b.prepend(dot(group));b.classList.toggle('active',state.active===group);b.setAttribute('aria-pressed',String(state.active===group));b.onclick=run(async()=>{await Host.call('set-workspace',{group});selected=null;cancelMove();await refresh();});$('workspace-filters').append(b);}
+    $('pin-list').replaceChildren();const list=visible();$('open-workspace').disabled=!list.length;
+    if(!list.length){const empty=document.createElement('p');empty.className='workspace-empty';empty.textContent='Your next favorite spot belongs here. Open a site and tap ＋ in the pin bar, or add one below.';$('pin-list').append(empty);}
+    for(const pin of list){const row=document.createElement('div');row.className='pin-card';row.classList.toggle('selected',selected===pin.id);row.dataset.pin=pin.id;
+      const open=document.createElement('button');open.className='pin-open';open.setAttribute('aria-label','Open '+pin.title);open.append(dot(pin.group));
+      if(pin.icon?.startsWith('data:image/png;base64,')){const img=document.createElement('img');img.src=pin.icon;img.alt='';open.append(img);}else{const icon=document.createElement('span');icon.className='favicon-letter';icon.textContent=new URL(pin.url).hostname[0].toUpperCase();open.append(icon);}
+      const label=document.createElement('span');label.className='pin-name';label.textContent=pin.title;const small=document.createElement('small');small.textContent=new URL(pin.url).hostname+' · '+state.names[pin.group];label.append(small);open.append(label);open.onclick=run(()=>Host.call('open-pin',{pinId:pin.id}));
+      const more=document.createElement('button');more.textContent='···';more.className='pin-more';more.setAttribute('aria-label','Edit '+pin.title);more.onclick=()=>edit(pin);row.append(open,more);$('pin-list').append(row);
+    }
+  }
+  async function refresh(newId){const request=++serial;const data=await Host.call('pins');if(request!==serial)return;state={pins:P.validate(data.pins),names:{...P.names,...data.names},active:['all',...P.groups].includes(data.active)?data.active:'all'};if(selected&&!state.pins.some(p=>p.id===selected))selected=null;render();globe?.setPins(visible(),newId);globe?.select(selected);}
+  function edit(pin){editing=pin?.id||null;$('pin-dialog-title').textContent=pin?'Edit pin':'Pin a site';$('pin-title').value=pin?.title||'';$('pin-url').value=pin?.url||'';$('pin-url').disabled=!!pin;$('pin-url-label').hidden=!!pin;$('pin-error').textContent='';$('pin-group').replaceChildren();for(const group of P.groups){const o=document.createElement('option');o.value=group;o.textContent=state.names[group];$('pin-group').append(o);}$('pin-group').value=pin?.group||(state.active==='all'?'cyan':state.active);$('move-pin').hidden=!pin||!globe;$('remove-pin').hidden=!pin;$('pin-dialog').showModal();}
+  function cancelMove(){moving=null;globe?.move(null);$('cancel-move').hidden=true;$('globe-caption').textContent=globe?'Drag to turn. Tap a pin to find its site.':'Your pins are available in the list.';}
+  $('search-form').onsubmit=e=>{e.preventDefault();Host.call('navigate',{text:$('search').value}).catch(fail);};
+  document.querySelectorAll('[data-url]').forEach(b=>b.onclick=run(()=>Host.call('open-url',{url:b.dataset.url})));
+  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
+  $('ai').onclick=run(()=>Host.call('open-studio'));$('write').onclick=run(()=>Host.call('open-workbench'));
+  $('add-pin').onclick=()=>edit(null);
+  $('pin-form').onsubmit=async e=>{e.preventDefault();$('save-pin').disabled=true;try{const pin={title:$('pin-title').value.trim(),group:$('pin-group').value};if(!pin.title)throw Error('Give the pin a name.');let result;if(editing)result=await Host.call('update-pin',{pin:{...pin,id:editing}});else result=await Host.call('pin-site',{...pin,url:P.url($('pin-url').value)});$('pin-dialog').close();selected=result.id;await refresh(result.id);$('status').textContent='Pin saved.';}catch(e){$('pin-error').textContent=e.message;}finally{$('save-pin').disabled=false;}};
+  $('remove-pin').onclick=run(async()=>{await Host.call('delete-pin',{pinId:editing});$('pin-dialog').close();cancelMove();await refresh();$('status').textContent='Unpinned. Its bookmark is still saved.';});
+  $('move-pin').onclick=()=>{moving=editing;globe?.move(moving);$('pin-dialog').close();$('cancel-move').hidden=false;$('globe-caption').textContent='Turn the globe, then tap where this pin should go.';$('globe').scrollIntoView({behavior:'smooth',block:'center'});};
+  $('cancel-move').onclick=cancelMove;
+  $('rotate').textContent=rotating?'Pause rotation':'Rotate globe';$('rotate').setAttribute('aria-pressed',String(rotating));$('rotate').onclick=()=>{rotating=!rotating;globe?.rotate(rotating);$('rotate').textContent=rotating?'Pause rotation':'Rotate globe';$('rotate').setAttribute('aria-pressed',String(rotating));};
+  $('open-workspace').onclick=run(async()=>{const r=await Host.call('open-workspace',{group:state.active});$('status').textContent=r.opened+' sites opened'+(r.remaining?'; '+r.remaining+' need space in the tab bar.':'.');});
+  $('rename').onclick=()=>{$('name-fields').replaceChildren();for(const group of P.groups){const label=document.createElement('label');label.textContent=group[0].toUpperCase()+group.slice(1);label.prepend(dot(group));const input=document.createElement('input');input.id='name-'+group;input.value=state.names[group];input.maxLength=20;input.required=true;label.append(input);$('name-fields').append(label);}$('names-error').textContent='';$('names-dialog').showModal();};
+  $('names-form').onsubmit=async e=>{e.preventDefault();try{const names={};for(const group of P.groups){names[group]=$('name-'+group).value.trim();if(!names[group])throw Error('Give each workspace a name.');}await Host.call('rename-workspaces',{names});$('names-dialog').close();await refresh();}catch(e){$('names-error').textContent=e.message;}};
+  globalThis.VoodooHome={refreshPins:id=>refresh(id).catch(fail),setActive:value=>{active=value;globe?.setActive(value);if(value)refresh().catch(fail);}};
+  refresh().catch(fail);
+  Host.call('get-store',{key:'options'}).then(o=>{if(o?.homeImage?.startsWith('data:image/'))$('home-image').src=o.homeImage;}).catch(fail);
+  VoodooGlobe.create($('globe'),{onSelect:id=>{selected=id;render();globe?.select(id);const pin=state.pins.find(p=>p.id===id);$('globe-caption').textContent=pin?pin.title+' · '+state.names[pin.group]:'';},onMove:async(id,lat,lon)=>{try{await Host.call('update-pin',{pin:{id,lat,lon}});cancelMove();await refresh(id);$('status').textContent='Pin placed.';}catch(e){fail(e);}}}).then(instance=>{globe=instance;globe.setPins(visible());globe.setActive(active);globe.rotate(rotating);}).catch(()=>{const img=document.createElement('img');img.src='branding/voodoo-cutout.png';img.alt='Embroidered Voodoo globe';img.className='globe-fallback';$('globe').prepend(img);$('rotate').hidden=true;cancelMove();});
 });

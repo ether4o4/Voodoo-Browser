@@ -4,7 +4,7 @@
 
 - Android release/debug compilation and APK packaging with JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36.
 - Android lint: no errors. Warnings include intentional synchronous preference commits, WebView JavaScript enablement, feature checks performed by callers, and pinned dependency versions.
-- 32 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, and backup coverage.
+- 38 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal.
 - 16 native checks for script URL scope, privileged internal-origin exclusion, and API endpoint restrictions.
 - Release APK alignment/signature verification and package identity inspection.
 
@@ -31,3 +31,10 @@ For device testing: install the signed APK; visit an ordinary HTTPS site; test n
 The cloud preview browser could not open the local app files, so no visual-rendering claim is made. DOM fixtures exercise homepage behavior with a simulated native bridge; they do not substitute for a real Android WebView run.
 
 For the workspace update: pin two sites to different colors; restart the app; check bar/filter persistence; rename a workspace; edit a pin; place it on the globe; open a workspace with the eight-tab limit reached; test portrait/landscape and reduced motion; export and restore pins; install the next same-key APK without uninstalling.
+
+## 0.2.1 mobile pass
+
+- Narrow-screen grid sizing and 48 px controls checked in source; stylesheet syntax validated.
+- Deferred native tab restore reviewed for retained URLs, active index, tab reuse, and closing/reopening.
+- Globe scheduler checked with a deterministic fake frame clock for idle, hidden/resume, cancellation, and bounded frame rate.
+- No connected ADB device was available. No on-device performance, keyboard, display-scaling, heat, or battery benchmark has been performed.

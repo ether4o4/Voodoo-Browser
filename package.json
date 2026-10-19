@@ -1,7 +1,7 @@
 {
   "name": "voodoo-browser-checks",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "build:web": "esbuild web/globe.js --bundle --format=iife --global-name=VoodooGlobe --target=chrome90 --minify --outfile=app/src/main/assets/globe.bundle.js"

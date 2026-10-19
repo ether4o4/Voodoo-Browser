@@ -7,14 +7,18 @@ The app is new code built around **Android System WebView**, the Chromium-based 
 ## What is built in
 
 - **Workspace pins:** a persistent pin bar with muted cyan, pink, green, and gold groups, saved favicons when available, and custom workspace names. Open a whole workspace, move pins between groups, or unpin while keeping the bookmark.
-- **Plush globe:** a bundled Three.js globe with cloth bump mapping, stitched land patches, orbiting all-caps lettering, and pin insertion animation. Drag to rotate, select a pin, or place it on the globe. Rotation pauses offscreen or in the background; reduced-motion preferences are respected. A static cutout and the pin list remain usable if WebGL is unavailable.
+- **Plush globe:** a bundled Three.js globe with cloth bump mapping, stitched land patches, orbiting all-caps lettering, and pin insertion animation. Drag to rotate, select a pin, or place it on the globe. Automatic animation is capped at 30 fps, direct dragging at 60 fps. Rendering stops entirely while idle, offscreen, or in the background; reduced-motion preferences are respected. A static cutout and the pin list remain usable if WebGL is unavailable.
 - **AI chat:** Venice, OpenAI, OpenRouter, Groq, Anthropic, Gemini, and custom HTTPS API endpoints. Each preset saves its own key and model. OpenAI-compatible, Anthropic Messages, and Gemini GenerateContent adapters are implemented. Model lists load from the configured provider.
 - **AI-assisted scripts:** complete generated userscripts appear in the draft editor. Review, save, enable, or run once on the target website. Drafts and recent draft history save locally.
 - **Userscript workspace:** import/export `.user.js`; per-script switches; `@match`, `@exclude-match`, `@run-at`; local GM value/style helpers. This is a supported subset of Tampermonkey behavior, not the Tampermonkey extension or a full extension platform.
 - **Writing Workbench:** lyric checks, protected lines, presets, saved versions, attempt notes, and JSON backups. Send a selected draft to Suno explicitly.
 - **Non-AI completion loop:** learn Create/loading/completed indicators, confirm completion, wait a random delay, and start another generation. Has Stop and an optional run cap. It never starts itself.
-- **Browser tools:** eight tabs, bookmarks, site notes, reader view, clean-link copy, find, text zoom, desktop mode, share, PDF printing, HTTPS downloads, file selection, and a keep-screen-awake switch.
+- **Browser tools:** eight tabs (saved background pages load only when selected), bookmarks, site notes, reader view, clean-link copy, find, text zoom, desktop mode, share, PDF printing, HTTPS downloads, file selection, and a keep-screen-awake switch.
 - **Persistence:** settings, scripts, drafts, provider keys and the browsing profile remain when a newer APK with the same application ID/signing key is installed over the existing app.
+
+## Mobile fit and performance
+
+The 0.2.1 mobile pass contains narrow-screen grid sizing, 48 px touch targets for small action controls, scrolling dialogs that fit the available viewport, and deferred restoration of background tabs. The globe uses a demand-driven renderer with capped pixel density and animation rates; paused, unchanged frames do not keep a render loop running. These are implemented improvements, not measured battery or frame-rate benchmarks. Device testing is still required for keyboard behavior, Android display/font scaling, WebView rendering, and long sessions on the owner's phone.
 
 ## First use
 

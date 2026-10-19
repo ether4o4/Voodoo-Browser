@@ -7,10 +7,11 @@
 - 38 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal.
 - 16 native checks for script URL scope, privileged internal-origin exclusion, and API endpoint restrictions.
 - Release APK alignment/signature verification and package identity inspection.
+- Owner confirmed that 0.2.1 installs after extracting the APK from the installer ZIP in the phone's file manager.
 
 ## Not yet verified
 
-- Physical Android device installation, visual rendering (including WebGL/fabric appearance), lifecycle behavior, and Android Keystore persistence across a real update.
+- Physical Android visual rendering (including WebGL/fabric appearance), lifecycle behavior, and Android Keystore persistence across a real update.
 - Provider calls using real API keys. Request adapters follow provider documentation, but account/model availability and proprietary endpoint differences require an actual account test.
 - Live Suno authentication, field matching, and credit-consuming generation.
 - Full Tampermonkey compatibility, which is intentionally outside the implemented subset.
@@ -38,3 +39,9 @@ For the workspace update: pin two sites to different colors; restart the app; ch
 - Deferred native tab restore reviewed for retained URLs, active index, tab reuse, and closing/reopening.
 - Globe scheduler checked with a deterministic fake frame clock for idle, hidden/resume, cancellation, and bounded frame rate.
 - No connected ADB device was available. No on-device performance, keyboard, display-scaling, heat, or battery benchmark has been performed.
+
+## 0.2.2 launcher icon
+
+- Launcher artwork reuses the exact transparent homepage cutout, with filtered scaling and no opaque background layer. Launcher-controlled icon framing remains device dependent.
+- Clean release build and lint passed. The packaged launcher PNG matches all visible homepage pixels and the complete alpha channel; Android's PNG optimizer only changes invisible RGB values in fully transparent pixels.
+- Version code increased to 4; application ID and signing certificate match 0.2.1. The installer ZIP contains the verified signed APK unchanged.

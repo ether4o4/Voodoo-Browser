@@ -1,5 +1,6 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#242723" android:pathData="M0,0h108v108h-108z"/>
-  <path android:fillColor="#C8D9AD" android:pathData="M72,30H42L28,44v20l14,14h30V65H48l-7,-7v-8l7,-7h24z"/>
-  <path android:fillColor="#CB7950" android:pathData="M73,67h10v11H73z"/>
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Reuse the homepage cutout without adding an opaque icon background. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/voodoo_launcher"
+    android:gravity="fill"
+    android:filter="true" />

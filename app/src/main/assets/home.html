@@ -4,7 +4,11 @@
   <div class="home-art"><img id="home-image" src="branding/voodoo-cutout.png" alt="VOODOO BROWSER — an embroidered globe with colorful pins" width="290" height="260"></div>
   <h1>Voodoo browser</h1>
   <form id="search-form" class="search-box"><input id="search" aria-label="Search the web or enter an address" placeholder="Search or enter an address…" autocomplete="off"><button aria-label="Search">↗</button></form>
-  <div class="quick-links"><button data-url="https://suno.com/create">Suno <span>Create music</span></button><button id="ai">AI &amp; scripts <span>Chat and automate</span></button><button id="write">Workbench <span>Lyrics and saved versions</span></button><button data-url="https://github.com/ether4o4/Voodoo-Browser">GitHub <span>Project source</span></button></div>
+  <section class="recent-section" aria-labelledby="recent-title">
+    <header class="recent-heading"><h2 id="recent-title">Recently visited</h2><button id="recent-retry" class="text" hidden>Retry</button></header>
+    <div id="recent-sites" class="recent-sites" aria-busy="true"></div>
+    <p id="recent-status" class="recent-status" role="status">Loading recent sites…</p>
+  </section>
   <section class="workspace-section" aria-labelledby="workspace-title">
     <header class="workspace-heading"><div><h2 id="workspace-title">Workspaces</h2></div><button id="rename">Rename</button></header>
     <div id="workspace-filters" class="workspace-filters" aria-label="Filter workspace"></div>

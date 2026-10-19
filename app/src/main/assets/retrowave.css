@@ -33,6 +33,18 @@
 .quick-links button:nth-child(2){color:var(--brand-pink)}
 .quick-links button:nth-child(3){color:var(--brand-cyan)}
 .quick-links button:nth-child(4){color:var(--brand-gold)}
+.recent-section{margin-top:22px;text-align:left}
+.recent-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.recent-heading h2{font-size:17px;letter-spacing:-.2px;color:var(--brand-mint);margin:0}
+.recent-heading button{font-size:12px;min-height:48px}
+.recent-sites{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.recent-card{display:flex;align-items:center;gap:10px;min-width:0;min-height:70px;padding:12px;text-align:left;border-radius:12px;background:#303139}
+.recent-card .recent-favicon{flex-shrink:0;width:24px;height:24px;object-fit:contain;border-radius:5px}
+.recent-text{min-width:0}
+.recent-text strong,.recent-text small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.recent-text strong{font-size:13px;font-weight:600;color:var(--brand-cyan)}
+.recent-text small{font-size:11px;font-weight:400;color:var(--muted);margin-top:4px}
+.recent-status{font-size:13px;line-height:1.5;color:var(--muted);margin:0;padding:8px 0}
 
 /* A compact, consistent shell leaves room for the task instead of decoration. */
 button{border-radius:10px}

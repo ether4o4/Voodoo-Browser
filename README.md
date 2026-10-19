@@ -6,6 +6,7 @@ The app is new code built around **Android System WebView**, the Chromium-based 
 
 ## What is built in
 
+- **Recent websites:** the homepage shows the six most recently visited sites, with titles and locally captured favicons when available. A compact **Shortcuts** button immediately left of Home opens Suno, AI & scripts, Workbench, and GitHub.
 - **Workspace pins:** a persistent pin bar with muted cyan, pink, green, and gold groups, saved favicons when available, and custom workspace names. Open a whole workspace, move pins between groups, or unpin while keeping the bookmark.
 - **Plush globe:** a bundled Three.js globe with cloth bump mapping, stitched land patches, orbiting all-caps lettering, and pin insertion animation. Drag to rotate, select a pin, or place it on the globe. Automatic animation is capped at 30 fps, direct dragging at 60 fps. Rendering stops entirely while idle, offscreen, or in the background; reduced-motion preferences are respected. A static cutout and the pin list remain usable if WebGL is unavailable.
 - **AI chat:** Venice, OpenAI, OpenRouter, Groq, Anthropic, Gemini, and custom HTTPS API endpoints. Each preset saves its own key and model. OpenAI-compatible, Anthropic Messages, and Gemini GenerateContent adapters are implemented. Model lists load from the configured provider.
@@ -25,11 +26,13 @@ The 0.2.3 interface pass makes search easier to reach, uses plain section names,
 ## First use
 
 1. Extract the installer ZIP in the phone's file manager and tap the signed APK. Install over the existing Voodoo app on Android 10 or newer. Keep Android System WebView updated.
-2. Open **AI → API keys**, choose a provider, enter its API key, load or type a text/code model ID, and save.
-3. Open a website, then **AI → AI chat**. Describe the script. Page text and element labels are shared only when you select the page-context checkbox. The current script and chat are sent to the selected provider.
+2. Open **Shortcuts → AI & scripts → API keys**, choose a provider, enter its API key, load or type a text/code model ID, and save. Shortcuts is the grid button immediately left of Home.
+3. Open a website, then **Shortcuts → AI & scripts → AI chat**. Describe the script. Page text and element labels are shared only when you select the page-context checkbox. The current script and chat are sent to the selected provider.
 4. Open **Scripts** to review the generated draft. Use **Run once on target** to try it, or save it with automatic execution enabled for matching sites. Reload a website to apply automatic changes or remove a previous script's timers/DOM changes.
 
 The supplied artwork is bundled. **Settings → Homepage image** lets you choose another image or restore the Voodoo cutout. Pin a website using **Tools → Bookmarks & notes → Pin / save bookmark**, **Pin a site** on the homepage, or **＋** in the browser pin bar once it is visible. Long-press a bar pin to move or unpin it. The homepage adds editing, workspace naming, and **Place on globe**. Positions are personal layout choices; the app does not infer your location or route traffic through the selected point. There is no built-in VPN or proxy service.
+
+Recent websites start filling as you browse after installing 0.2.4. Only successful external HTTPS visits are recorded, with one entry per host and 24 sites retained locally. The homepage shows the newest six. Internal Voodoo pages and failed loads are excluded; recent visits are not included in exported tool backups.
 
 ## Suno loop
 

@@ -4,8 +4,8 @@
 
 - Android release/debug compilation and APK packaging with JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36.
 - Android lint: no errors. Warnings include intentional synchronous preference commits, WebView JavaScript enablement, feature checks performed by callers, and pinned dependency versions.
-- 39 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal; initial Settings routing and section reuse without losing unsaved drafts.
-- 16 native checks for script URL scope, privileged internal-origin exclusion, and API endpoint restrictions.
+- 44 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal; initial Settings routing and section reuse without losing unsaved drafts; recent-site empty/resume states, safe titles and URLs, host deduplication, local favicons, current-tab navigation, and failed-refresh recovery.
+- 39 native checks for script URL scope, privileged internal-origin exclusion, API endpoint restrictions, recent-site limits and deduplication, and successful versus failed main-frame visits.
 - Release APK alignment/signature verification and package identity inspection.
 - Owner confirmed that 0.2.1 installs after extracting the APK from the installer ZIP in the phone's file manager.
 
@@ -54,3 +54,11 @@ For the workspace update: pin two sites to different colors; restart the app; ch
 - Clean release build, Android lint, and all 39 Node/DOM tests passed. The signed APK has version code 5 and the same application ID and signing certificate as 0.2.2. ZIP CRC, alignment, and installer contents were verified.
 - The packaged icon is the transparent homepage PNG, referenced directly. Its visible pixels and complete alpha channel match the homepage image. Samsung frame opt-out metadata is present and true in the compiled manifest.
 - No physical-device UI run or launcher test was available for this release. The owner's 0.2.2 screenshot showed a white launcher frame; whether the Samsung compatibility hint removes it on their current launcher remains unverified.
+
+## 0.2.4 shortcuts and recent sites
+
+- The six bottom controls remain 50 dp tall. Their order is Back, Forward, Shortcuts, Home, Tools, Tabs; every control uses an artwork accent color. Shortcuts preserves Suno, AI & Scripts, Workbench, and GitHub in one menu immediately left of Home.
+- The homepage shows up to six recently visited HTTPS hosts in two columns. Twenty-four unique hosts persist locally. Internal pages and failed main-frame loads are excluded; background completion does not reorder the list until that tab is viewed. A blocked third-party SSL resource does not disqualify a successful main page.
+- Recent cards use text-only titles, captured PNG favicons or initials, current-tab navigation, and explicit loading/empty/retry states. No remote favicon service is used. History is excluded from workspace exports.
+- All 44 Node/DOM tests and 39 native checks passed. Native WebView callback behavior and final appearance still need an on-device run.
+- Clean release build and Android lint passed. Version code 6, application ID, matching 0.2.3 signing certificate, APK alignment, transparent launcher artwork, ZIP CRC, and installer contents were verified.

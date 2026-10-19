@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#242723">
+  <meta name="description" content="Your lyrics, your rules. A private writing workbench for 4GAuteau.">
+  <title>4GAuteau — Workbench</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script src="../studio/bridge.js" defer></script>
+  <script src="native.js" defer></script>
+  <script src="core.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Sessions">
+      <a class="brand" href="#" aria-label="4GAuteau Workbench"><span class="mark">4G<span>A</span></span><span class="brand-text">4GAUTEAU<small>WRITING WORKBENCH</small></span></a>
+      <div class="sidebar-heading"><span>YOUR SESSIONS</span><span id="song-count">01</span></div>
+      <button class="new-session" id="new-song"><span>＋</span> New session</button>
+      <input class="search" id="search-songs" aria-label="Find a session" placeholder="Find a session…" type="search">
+      <div id="song-list" class="song-list"></div>
+      <div class="sidebar-bottom">
+        <div class="local-note"><span class="status-dot"></span> PRIVATE BY DEFAULT<small>Saved in this browser. Back up to move devices.</small></div>
+        <div class="backup-actions"><button id="export-backup">Export backup</button><button id="import-backup">Import backup</button></div>
+        <p class="version">PERSONAL EDITION <span>01 / v1.0</span></p>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar"><span class="eyebrow">THE WORKBENCH</span><span id="save-status" role="status">Opening…</span></header>
+      <div id="error-banner" class="error-banner" role="alert" hidden></div>
+      <div class="mobile-sessions"><label for="mobile-song">SESSION</label><select id="mobile-song"></select><button id="mobile-new" aria-label="New session">＋</button></div>
+      <div class="workspace-heading"><div><div class="eyebrow accent">WORDS BEFORE EVERYTHING</div><input id="song-title" class="title-input" aria-label="Session title" maxlength="160" value="Untitled session"></div><div class="tempo"><label for="song-bpm">TEMPO</label><div><input id="song-bpm" type="number" min="30" max="300" value="72" aria-label="Tempo in BPM"><span>BPM</span></div></div></div>
+      <nav class="tabs" aria-label="Workbench sections"><button class="active" data-tab="write" aria-current="page">01 <span>Write</span></button><button data-tab="suno">02 <span>Suno</span></button><button data-tab="versions">03 <span>Versions</span><span id="history-count" class="small-count">0</span></button><button data-tab="rules">04 <span>Rules</span></button></nav>
+
+      <section id="tab-write" class="tab-panel">
+        <div class="write-grid">
+          <div class="writing-column">
+            <div class="panel writing-panel">
+              <div class="panel-head"><div class="segmented" aria-label="Editor view"><button id="editor-mode" class="active" aria-pressed="true">Editor</button><button id="line-mode" aria-pressed="false">Line view</button></div><span id="word-count" class="muted small">0 words</span></div>
+              <label for="lyrics" class="sr-only">Lyrics</label><textarea id="lyrics" class="lyrics-editor" spellcheck="false" placeholder="Start with the line you mean.&#10;&#10;Use [Verse 1], [Hook], or [Bridge] to mark sections."></textarea>
+              <div id="line-view" class="line-view" hidden></div>
+              <div class="editor-foot"><span id="lock-caption">Lock approved bars in Line view.</span><button id="check-lyrics" class="primary compact">Check lyrics <span>↗</span></button></div>
+            </div>
+            <div class="editor-actions"><button id="save-version" class="secondary">Save version</button><button id="copy-lyrics" class="text-button">Copy lyrics</button><button id="copy-handoff" class="text-button">Copy writing brief</button><button id="download-song" class="text-button">Export song</button></div>
+            <details class="panel context-panel"><summary>Context & reference notes <span>＋</span></summary><div class="context-fields"><label>What is this song actually about?<textarea id="song-notes" rows="3" maxlength="20000" placeholder="The situation, the contradiction, the detail that matters."></textarea></label><label>References & delivery<textarea id="song-references" rows="3" maxlength="20000" placeholder="Song links, cadence notes, your own reference lines, and what to take from each."></textarea></label></div></details>
+          </div>
+          <aside class="guard-column" aria-label="Lyric check results">
+            <div class="guard-title"><div class="eyebrow">YOUR SECOND PASS</div><h2>Lyric Guard<span class="accent">.</span></h2><p>Catch the habits. Keep your voice.</p></div>
+            <div class="stats"><div><strong id="bar-count">0</strong><span>LINES</span></div><div><strong id="locked-count">0</strong><span>LOCKED</span></div><div><strong id="flag-count">0</strong><span>FLAGS</span></div></div>
+            <div id="checks-list" class="checks-list"></div>
+            <p class="analysis-note">Phrase and reuse checks run on your saved rules. Syllables and cadence are estimates; your delivery decides.</p>
+            <div class="tip"><span class="eyebrow">A RULE WORTH KEEPING</span><p>Specific actions.<br>Physical consequences.<br>Words you would actually say.</p></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="tab-suno" class="tab-panel" hidden>
+        <div class="section-heading"><div><div class="eyebrow accent">BUILD THE SOUND</div><h2>Suno Workbench</h2></div><button id="open-suno" class="secondary">Open Suno ↗</button></div>
+        <div class="suno-grid"><div class="panel form-panel"><div class="panel-head"><h3>Style prompt</h3><span id="style-count" class="muted small">0 / 1,000 target</span></div><div class="form-body"><div class="preset-row"><label class="sr-only" for="preset-select">Saved style preset</label><select id="preset-select"><option value="">Choose a preset…</option></select><button id="apply-preset" class="secondary">Apply</button></div><label for="song-style">Describe the production and delivery</label><textarea id="song-style" rows="9" maxlength="20000" placeholder="Tempo, instruments, space, vocal delivery. Keep it specific."></textarea><div class="row-actions"><button id="copy-style" class="primary">Copy style</button><button id="save-preset" class="text-button">Save as preset</button></div><label for="song-exclude">Styles to exclude</label><textarea id="song-exclude" rows="3" maxlength="20000" placeholder="Keep unwanted styles here, separate from your main prompt."></textarea><button id="copy-exclude" class="text-button">Copy exclusions</button><div class="send-card"><div><strong>Ready for Suno?</strong><p id="suno-help">Fill the open create page, then review it before generating.</p></div><button id="fill-suno" class="primary">Fill Suno fields ↗</button></div></div></div>
+        <div><div class="panel form-panel"><div class="panel-head"><h3>Keep what worked</h3></div><div class="form-body"><label for="attempt-rating">Result</label><select id="attempt-rating"><option value="keep">Keep — this direction works</option><option value="revise">Revise — close, needs adjustment</option><option value="pass">Pass — wrong direction</option></select><label for="attempt-notes">What changed? What worked?</label><textarea id="attempt-notes" rows="4" maxlength="6000" placeholder="The vocal sits right. Bass needs more sustain. Keep this hook delivery."></textarea><label for="attempt-url">Track link <span class="muted">(optional)</span></label><input id="attempt-url" type="url" placeholder="https://suno.com/song/…" maxlength="2000"><button id="log-attempt" class="secondary full">Save this attempt</button><p class="small muted">Stores the current lyrics, style, exclusions, and your result notes together.</p></div></div><div id="attempt-list" class="attempt-list"></div></div></div>
+      </section>
+
+      <section id="tab-versions" class="tab-panel" hidden>
+        <div class="section-heading"><div><div class="eyebrow accent">KEEP THE GOOD TAKES</div><h2>Version history</h2></div><button id="version-save-2" class="primary">Save version</button></div><p class="section-description">Autosave keeps your current draft. Named versions keep a point you can return to. Up to 40 per session.</p><div id="versions-list"></div><div class="danger-zone"><span>This session only</span><button id="duplicate-song" class="secondary">Duplicate session</button><button id="delete-song" class="danger-button">Delete session</button></div>
+      </section>
+
+      <section id="tab-rules" class="tab-panel" hidden>
+        <div class="section-heading"><div><div class="eyebrow accent">MAKE IT YOURS</div><h2>Your writing rules</h2></div><span id="rule-count" class="badge"></span></div><div class="rules-grid"><div class="panel form-panel"><div class="panel-head"><h3>Writing brief</h3></div><div class="form-body"><label for="writing-rules">Included when you copy a writing brief</label><textarea id="writing-rules" rows="11" maxlength="20000"></textarea><p class="small muted">Use this brief with the writing assistant of your choice. Workbench itself uses local checks and does not generate lyrics.</p></div></div><div class="panel form-panel"><div class="panel-head"><h3>Blocked phrases</h3></div><div class="form-body"><p class="small muted">Your personal list is preloaded. Matching ignores case and punctuation and checks common word endings.</p><label for="add-phrase">Add a word or phrase</label><div class="preset-row"><input id="add-phrase" maxlength="160" placeholder="Add to your list…"><button id="add-phrase-button" class="secondary">Add</button></div><details><summary>Edit the complete list</summary><label for="blocked-phrases" class="sr-only">Blocked phrases, one per line</label><textarea id="blocked-phrases" rows="12" spellcheck="false"></textarea><button id="save-rules" class="secondary">Save phrase list</button></details></div></div></div><div class="panel privacy-card"><strong>Yours, on this device.</strong><p>No account, API key, tracking, or remote scripts. Lyrics stay in browser storage until you copy, export, or fill them into Suno. Export a backup before uninstalling, clearing browser data, or switching devices.</p><div class="row-actions"><button id="export-backup-2" class="secondary">Export full backup</button><button id="import-backup-2" class="text-button">Import backup</button></div></div>
+      </section>
+      <footer class="main-footer"><span>4GAUTEAU / WORKBENCH</span><span>YOUR WORDS. YOUR RULES.</span></footer>
+    </main>
+  </div>
+  <input id="import-file" type="file" accept=".json,application/json" hidden>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="name-dialog"><form method="dialog"><div class="eyebrow accent">WORKBENCH</div><h2 id="name-dialog-title">New session</h2><label for="name-input" id="name-input-label">Name</label><input id="name-input" maxlength="160" autocomplete="off"><div class="dialog-actions"><button value="cancel" class="text-button">Cancel</button><button value="save" class="primary">Save</button></div></form></dialog>
+  <dialog id="version-dialog"><div class="eyebrow accent">SAVED VERSION</div><h2 id="version-dialog-title"></h2><p id="version-dialog-date" class="small muted"></p><label for="version-preview" class="sr-only">Version lyrics</label><textarea id="version-preview" readonly rows="13"></textarea><p id="version-preview-style" class="small muted"></p><div class="dialog-actions"><button id="close-version" class="text-button">Close</button><button id="restore-version" class="primary">Restore version</button></div></dialog>
+  <dialog id="import-dialog"><div class="eyebrow accent">BACKUP FOUND</div><h2>Import sessions</h2><p id="import-summary"></p><label class="checkbox-label"><input id="import-settings" type="checkbox"> Also use the backup’s writing rules and phrase list</label><p class="small muted">Sessions are added as new copies. Your existing sessions stay in place.</p><div class="dialog-actions"><button id="cancel-import" class="text-button">Cancel</button><button id="confirm-import" class="primary">Import</button></div></dialog>
+  <noscript>This workbench needs JavaScript enabled in your browser.</noscript>
+</body>
+</html>

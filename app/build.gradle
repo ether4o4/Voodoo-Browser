@@ -1,0 +1,19 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.ether4o4.voodoo'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.ether4o4.voodoo'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes {
+        debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev' }
+        release { minifyEnabled false }
+    }
+    lint { abortOnError true }
+}
+dependencies { implementation 'androidx.webkit:webkit:1.14.0' }

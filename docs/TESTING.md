@@ -4,7 +4,7 @@
 
 - Android release/debug compilation and APK packaging with JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36.
 - Android lint: no errors. Warnings include intentional synchronous preference commits, WebView JavaScript enablement, feature checks performed by callers, and pinned dependency versions.
-- 38 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal.
+- 39 Node/DOM tests: lyric locks and archive validation; completion/status transitions; stop/cap/timeout/duplicate protection; script host/path/exclusion matching; internal-page exclusions; GM helpers; reader sanitization; AI output becoming a disabled draft; stable script IDs; explicit page sharing; failed-request retry; edits made while an AI request is pending; pin backup validation, HTML-safe titles, workspace filtering/naming, placement, failed-save recovery, backup coverage; render scheduler rate limits, idle, visibility, resume, and disposal; initial Settings routing and section reuse without losing unsaved drafts.
 - 16 native checks for script URL scope, privileged internal-origin exclusion, and API endpoint restrictions.
 - Release APK alignment/signature verification and package identity inspection.
 - Owner confirmed that 0.2.1 installs after extracting the APK from the installer ZIP in the phone's file manager.
@@ -45,3 +45,12 @@ For the workspace update: pin two sites to different colors; restart the app; ch
 - Launcher artwork reuses the exact transparent homepage cutout, with filtered scaling and no opaque background layer. Launcher-controlled icon framing remains device dependent.
 - Clean release build and lint passed. The packaged launcher PNG matches all visible homepage pixels and the complete alpha channel; Android's PNG optimizer only changes invisible RGB values in fully transparent pixels.
 - Version code increased to 4; application ID and signing certificate match 0.2.1. The installer ZIP contains the verified signed APK unchanged.
+
+## 0.2.3 interface and launcher compatibility
+
+- Smaller homepage artwork, clearer headings and saved-site colors, simplified copy, collapsible help, consistent controls, and preserved mobile touch sizes. HTML IDs remain intact; CSS/DOM parsing passed. Selected accent contrast checks were at least 4.67:1 on their checked surfaces.
+- Native address field and buttons use rounded surfaces; the empty pin row is hidden. The Tools menu groups all 18 existing actions into seven top-level entries.
+- Settings opens using a section URL instead of evaluating JavaScript before Studio has loaded. A regression covers first-load Settings, route changes, invalid routes, and retained unsaved script/chat text.
+- Clean release build, Android lint, and all 39 Node/DOM tests passed. The signed APK has version code 5 and the same application ID and signing certificate as 0.2.2. ZIP CRC, alignment, and installer contents were verified.
+- The packaged icon is the transparent homepage PNG, referenced directly. Its visible pixels and complete alpha channel match the homepage image. Samsung frame opt-out metadata is present and true in the compiled manifest.
+- No physical-device UI run or launcher test was available for this release. The owner's 0.2.2 screenshot showed a white launcher frame; whether the Samsung compatibility hint removes it on their current launcher remains unverified.

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Reuse the homepage cutout without adding an opaque icon background. -->
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/voodoo_launcher"
-    android:gravity="fill"
-    android:filter="true" />

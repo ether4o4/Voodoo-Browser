@@ -20,3 +20,88 @@
   .shell .segmented button,.shell .lock-button,.shell .primary.compact,.shell .mobile-sessions button,.shell .mobile-sessions select{min-height:48px}
   .shell .mobile-sessions button{min-width:48px;width:48px}
 }
+
+/* Logo colors mark the hierarchy; reading text keeps its neutral ink color. */
+:root{--brand-pink:#d6a6c3;--brand-mint:#a4cdbe;--brand-cyan:#a1c9d6;--brand-gold:#dfc28f}
+.home h1,.studio-header strong,.studio-main h1,.shell .title-input,.brand-text{color:var(--brand-pink)}
+.home .workspace-heading h2,.studio-main .info-card h2,.studio-main .settings-card h2,.shell .section-heading h2,.shell .guard-title h2,dialog h2{color:var(--brand-mint)}
+.studio-main label[for="script-name"],.studio-main label[for="code"],.studio-main label[for="prompt"],.chat-config>label,.provider-layout>div>label,.setting label,.shell .panel-head h3,.shell .mobile-sessions label{color:var(--brand-gold)}
+.pin-name,.script-item strong,.song-button strong,#context-url,.version-card strong,.shell #mobile-song{color:var(--brand-cyan)}
+.studio-tabs button.active,.shell .tabs button.active{color:var(--brand-mint)}
+.shell .tabs button.active{border-bottom-color:var(--brand-mint)}
+.quick-links button:nth-child(1){color:var(--brand-mint)}
+.quick-links button:nth-child(2){color:var(--brand-pink)}
+.quick-links button:nth-child(3){color:var(--brand-cyan)}
+.quick-links button:nth-child(4){color:var(--brand-gold)}
+
+/* A compact, consistent shell leaves room for the task instead of decoration. */
+button{border-radius:10px}
+input,textarea,select{border-radius:10px}
+.home-inner{max-width:940px;padding-top:24px}
+.home-art{max-width:132px;margin-bottom:12px}
+.home .home-art img{max-height:132px}
+.home h1{font-size:clamp(28px,7vw,38px);font-weight:650;letter-spacing:-1.1px;margin-bottom:20px}
+.search-box{border-radius:14px;border-color:#655b6a;box-shadow:none}
+.search-box:focus-within{border-color:var(--brand-pink)}
+.quick-links{gap:10px;margin-top:18px}
+.quick-links button{padding:15px 16px;font-size:14px;border-radius:12px}
+.quick-links span{font-size:12px;line-height:1.4;margin-top:5px}
+.workspace-section{margin-top:28px;padding-top:24px}
+.home .workspace-heading{align-items:center;margin-bottom:16px}
+.home .workspace-heading h2{font-size:22px;letter-spacing:-.4px}
+.home .workspace-heading button{font-size:12px}
+.workspace-body{align-items:start;gap:20px}
+.workspace-filters button{font-size:12px}
+.pin-card{border-radius:12px;padding:10px 12px}
+.pin-open{font-size:14px}
+.pin-name small{font-size:11px;margin-top:3px}
+.pin-actions button{font-size:12px}
+.workspace-foot,.globe-caption{font-size:12px;line-height:1.5}
+.home-status:empty{min-height:0;margin:0}
+.studio-header{padding:16px 5vw;gap:12px}
+.studio-header .logo{font-size:32px}
+.studio-header strong{font-size:17px}
+.studio-tabs{padding-top:8px;padding-bottom:8px;gap:6px}
+.studio-tabs button{border-radius:10px}
+.studio-main{max-width:1080px;padding-top:24px}
+.studio-main h1{font-size:30px;letter-spacing:-.8px;font-weight:650}
+.studio-main .section-heading{margin:0 0 22px;gap:16px;align-items:center}
+.studio-main .section-heading h1{margin:0}
+.context-card{margin-top:18px;padding:12px 16px;border-radius:12px}
+.context-heading{display:flex;gap:12px;align-items:center;justify-content:space-between}
+#context-url{min-width:0}
+#refresh-context{float:none;flex-shrink:0;min-height:48px;padding:8px;font-size:12px}
+.context-card .check{margin:4px 0;font-size:13px}
+.context-card p{font-size:12px;line-height:1.5}
+.messages{padding:12px 0}
+.messages:empty{min-height:0;padding:0}
+.message{border-radius:12px;line-height:1.65}
+.setting{padding:16px;gap:16px}
+.setting input{flex-shrink:0}
+.setting p{line-height:1.5}
+.provider-help{padding:0 18px;align-self:start;font-size:13px}
+.provider-help>summary{min-height:48px;padding:13px 0;color:var(--brand-mint);font-weight:600}
+.provider-help p{line-height:1.65}
+.update-help>summary{font-size:16px;font-weight:600;color:var(--brand-mint);padding:12px 0;min-height:48px}
+.shell .topbar .eyebrow{font-family:inherit;font-size:13px;letter-spacing:0;color:var(--brand-pink)}
+.shell .workspace-heading{padding-top:24px;padding-bottom:20px}
+.shell .section-heading h2{font-size:26px;letter-spacing:-.6px}
+.shell .guard-title h2{font-size:23px;letter-spacing:-.5px;line-height:1.3}
+.shell .guard-title p{font-size:12px}
+.shell .panel{border-radius:12px}
+.shell .panel-head{padding:14px 16px}
+.shell .panel-head h3{font-size:15px}
+.shell .mobile-sessions label{font-size:11px;letter-spacing:.4px}
+.shell .mobile-sessions select{font-size:15px}
+@media(max-width:680px){
+  .home-inner{padding:20px 18px 28px}
+  .home-art{max-width:112px}
+  .home .home-art img{max-height:112px}
+  .quick-links button{padding:14px 12px}
+  .studio-header{padding:14px 20px}
+  .studio-tabs{padding:8px 12px}
+  .studio-tabs button{flex:1;min-width:0;padding:8px;font-size:13px}
+  .studio-main{padding-top:22px}
+  .studio-main h1{font-size:28px}
+  .provider-help{margin-top:0}
+}

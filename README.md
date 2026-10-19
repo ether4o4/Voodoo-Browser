@@ -20,14 +20,16 @@ The app is new code built around **Android System WebView**, the Chromium-based 
 
 The 0.2.1 mobile pass contains narrow-screen grid sizing, 48 px touch targets for small action controls, scrolling dialogs that fit the available viewport, and deferred restoration of background tabs. The globe uses a demand-driven renderer with capped pixel density and animation rates; paused, unchanged frames do not keep a render loop running. These are implemented improvements, not measured battery or frame-rate benchmarks. Device testing is still required for keyboard behavior, Android display/font scaling, WebView rendering, and long sessions on the owner's phone.
 
+The 0.2.3 interface pass makes search easier to reach, uses plain section names, groups browser tools, and hides the empty pin bar. Pink, seafoam, cyan, and gold distinguish key headings, saved sites, tabs, and labels while body text stays neutral. The launcher uses the transparent homepage PNG directly and includes Samsung's icon-frame opt-out metadata. Samsung launcher/theme behavior still needs confirmation on the owner's phone; the app does not substitute a filled adaptive-icon tile.
+
 ## First use
 
-1. Install the signed release APK on Android 10 or newer. Keep Android System WebView updated.
-2. Open **AI → Providers**, choose a provider, enter its API key, load or type a text/code model ID, and save.
+1. Extract the installer ZIP in the phone's file manager and tap the signed APK. Install over the existing Voodoo app on Android 10 or newer. Keep Android System WebView updated.
+2. Open **AI → API keys**, choose a provider, enter its API key, load or type a text/code model ID, and save.
 3. Open a website, then **AI → AI chat**. Describe the script. Page text and element labels are shared only when you select the page-context checkbox. The current script and chat are sent to the selected provider.
 4. Open **Scripts** to review the generated draft. Use **Run once on target** to try it, or save it with automatic execution enabled for matching sites. Reload a website to apply automatic changes or remove a previous script's timers/DOM changes.
 
-The supplied artwork is bundled. **Settings → Homepage image** lets you choose another image or restore the Voodoo cutout. Pin a website using **＋** in the browser pin bar or **Tools → Pin / save bookmark**. Long-press a bar pin to move or unpin it. The homepage adds editing, workspace naming, and **Place on globe**. Positions are personal layout choices; the app does not infer your location or route traffic through the selected point. There is no built-in VPN or proxy service.
+The supplied artwork is bundled. **Settings → Homepage image** lets you choose another image or restore the Voodoo cutout. Pin a website using **Tools → Bookmarks & notes → Pin / save bookmark**, **Pin a site** on the homepage, or **＋** in the browser pin bar once it is visible. Long-press a bar pin to move or unpin it. The homepage adds editing, workspace naming, and **Place on globe**. Positions are personal layout choices; the app does not infer your location or route traffic through the selected point. There is no built-in VPN or proxy service.
 
 ## Suno loop
 

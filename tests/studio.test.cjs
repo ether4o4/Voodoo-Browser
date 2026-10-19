@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');const root=path.join(__dirname,'../app/src/main/assets');
 const tick=()=>new Promise(r=>setTimeout(r,30));
-async function fixture(overrides={}){
- const data={},calls=[],dom=new JSDOM(fs.readFileSync(path.join(root,'studio/index.html'),'utf8'),{url:'https://appassets.androidplatform.net/assets/studio/index.html',runScripts:'outside-only'});const w=dom.window;
+async function fixture(overrides={},hash=''){
+ const data={},calls=[],dom=new JSDOM(fs.readFileSync(path.join(root,'studio/index.html'),'utf8'),{url:'https://appassets.androidplatform.net/assets/studio/index.html'+hash,runScripts:'outside-only'});const w=dom.window;
  w.confirm=()=>true;w.Host={call:async(op,args={})=>{calls.push({op,args});if(overrides[op])return overrides[op](args,data);if(op==='get-store')return data[args.key]||null;if(op==='put-store'){if(args.expectedRevision!==undefined)assert.equal(args.expectedRevision,data[args.key]?._revision||0);data[args.key]=JSON.parse(JSON.stringify(args.value));return true;}if(op==='profiles')return [{id:'venice',name:'Venice AI',kind:'openai',base:'https://api.venice.ai/api/v1',model:'fixture-code-model',hasKey:true}];if(op==='context')return {url:'https://example.com/Create',title:'Fixture',...(args.includePage?{page:{text:'Explicitly shared'}}:{})};if(op==='chat')return {text:'Done.\n```javascript\n// ==UserScript==\n// @name AI draft\n// @match https://example.com/*\n// @grant none\n// ==/UserScript==\nwindow.fromAI=true;\n```',truncated:false};if(op==='run-script')return 'Ran test';return true;}};
  w.eval(fs.readFileSync(path.join(root,'pins.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'studio/engine.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'studio/studio.js'),'utf8'));await tick();return {dom,w,data,calls,$:id=>w.document.getElementById(id)};
 }
@@ -20,4 +20,19 @@ test('editing while AI is pending does not overwrite the newer draft',async()=>{
 });
 test('tool backup includes current workspace pins and names without provider keys',async()=>{
  const f=await fixture();f.data.pins=[{id:'pin-1',title:'Music',url:'https://example.com',group:'pink',lat:10,lon:20}];f.data.options={workspaceNames:{pink:'Music'}};f.$('backup').click();await tick();await tick();const exported=f.calls.find(c=>c.op==='export-file');assert.ok(exported);const backup=JSON.parse(exported.args.text);assert.deepEqual(backup.pins,f.data.pins);assert.equal(backup.options.workspaceNames.pink,'Music');assert.equal(backup.profiles,undefined);assert.equal(backup.keys,undefined);f.dom.window.close();
+});
+test('Settings opens on first load and reused section routes preserve unsaved drafts',async()=>{
+ const f=await fixture({},'#settings');
+ try{
+  assert.equal(f.$('settings').hidden,false);assert.equal(f.$('chat').hidden,true);
+  assert.equal(f.w.document.querySelector('[data-section="settings"]').classList.contains('active'),true);
+  f.w.document.querySelector('[data-section="scripts"]').click();assert.equal(f.w.location.hash,'#scripts');
+  const draft=f.$('code').value+'\n// Keep this unsaved edit';f.$('code').value=draft;f.$('code').dispatchEvent(new f.w.Event('input'));f.$('prompt').value='Keep my unsent chat';
+  f.w.location.hash='#settings';await tick();assert.equal(f.$('settings').hidden,false);
+  f.w.location.hash='#providers';await tick();assert.equal(f.$('providers').hidden,false);
+  f.w.location.hash='#unknown-section';await tick();assert.equal(f.$('chat').hidden,false);assert.equal(f.w.location.hash,'#chat');
+  f.w.VoodooUI.show('scripts');assert.equal(f.$('scripts').hidden,false);assert.equal(f.w.location.hash,'#scripts');
+  assert.equal(f.$('code').value,draft);assert.equal(f.$('prompt').value,'Keep my unsent chat');
+  assert.equal(f.calls.filter(c=>c.op==='get-store'&&c.args.key==='studio').length,1);
+ }finally{f.dom.window.close();}
 });

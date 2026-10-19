@@ -6,7 +6,9 @@
   const uid=()=>crypto.randomUUID();
   function notice(text){$('status').textContent=text;$('status').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('status').hidden=true,6500);}
   function fail(e){notice(e.message||String(e));}
-  function show(id){document.querySelectorAll('.section').forEach(el=>el.hidden=el.id!==id);document.querySelectorAll('[data-section]').forEach(b=>b.classList.toggle('active',b.dataset.section===id));if(id==='scripts')renderHistory();}
+  const sections=new Set(['chat','scripts','providers','settings']);
+  function show(id){if(!sections.has(id))id='chat';document.querySelectorAll('.section').forEach(el=>el.hidden=el.id!==id);document.querySelectorAll('[data-section]').forEach(b=>b.classList.toggle('active',b.dataset.section===id));if(location.hash!=='#'+id)history.replaceState(history.state,'','#'+id);if(id==='scripts')renderHistory();}
+  addEventListener('hashchange',()=>{if(initialized)show(location.hash.slice(1));});
   globalThis.VoodooUI={show};
   function persist(){clearTimeout(saveTimer);saving=saving.catch(()=>{}).then(async()=>{const next=copy(state);next._revision=revision+1;await Host.call('put-store',{key:'studio',value:next,expectedRevision:revision});revision=next._revision;state._revision=revision;$('script-saved').textContent='Draft saved locally';});saving.catch(e=>{$('script-saved').textContent='Not saved — export a backup';fail(e);});return saving;}
   function schedule(){clearTimeout(saveTimer);$('script-saved').textContent='Saving draft…';saveTimer=setTimeout(persist,350);}
@@ -76,6 +78,7 @@
       $('choose-image').onclick=()=>$('image-file').click();$('image-file').onchange=async()=>{try{const f=$('image-file').files[0];if(!f)return;if(f.size>2000000||!f.type.startsWith('image/'))throw Error('Choose an image under 2 MB.');const reader=new FileReader();reader.onload=async()=>{try{options.homeImage=reader.result;await saveOptions();notice('Homepage image saved. Reload the homepage to see it.');}catch(e){fail(e);}};reader.readAsDataURL(f);}catch(e){fail(e);}};
       $('remove-image').onclick=async()=>{delete options.homeImage;try{await saveOptions();notice('Default Voodoo artwork restored.');}catch(e){fail(e);}};
       document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&initialized)persist().catch(()=>{});});
+      show(location.hash.slice(1));
     }catch(e){notice(e.message||'Could not open this workspace.');}
   }
   init();

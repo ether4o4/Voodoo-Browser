@@ -2,20 +2,20 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Voodoo Browser</title><link rel="stylesheet" href="studio/style.css"><link rel="stylesheet" href="retrowave.css"><script defer src="studio/bridge.js"></script><script defer src="pins.js"></script><script defer src="globe.bundle.js"></script><script defer src="home.js"></script></head>
 <body class="home"><main class="home-inner">
   <div class="home-art"><img id="home-image" src="branding/voodoo-cutout.png" alt="VOODOO BROWSER — an embroidered globe with colorful pins" width="290" height="260"></div>
-  <p class="eyebrow">YOUR BROWSER. YOUR RULES.</p><h1>Voodoo browser</h1>
+  <h1>Voodoo browser</h1>
   <form id="search-form" class="search-box"><input id="search" aria-label="Search the web or enter an address" placeholder="Search or enter an address…" autocomplete="off"><button aria-label="Search">↗</button></form>
-  <div class="quick-links"><button data-url="https://suno.com/create">Suno <span>Music workspace ↗</span></button><button id="ai">AI + Scripts <span>Build tools as you browse ↗</span></button><button id="write">Workbench <span>Lyrics, presets, versions ↗</span></button><button data-url="https://github.com/ether4o4/Voodoo-Browser">GitHub <span>Voodoo Browser source ↗</span></button></div>
+  <div class="quick-links"><button data-url="https://suno.com/create">Suno <span>Create music</span></button><button id="ai">AI &amp; scripts <span>Chat and automate</span></button><button id="write">Workbench <span>Lyrics and saved versions</span></button><button data-url="https://github.com/ether4o4/Voodoo-Browser">GitHub <span>Project source</span></button></div>
   <section class="workspace-section" aria-labelledby="workspace-title">
-    <header class="workspace-heading"><div><p class="eyebrow">A PLACE FOR EVERY PIN</p><h2 id="workspace-title">Your little world</h2></div><button id="rename">Name workspaces</button></header>
+    <header class="workspace-heading"><div><h2 id="workspace-title">Workspaces</h2></div><button id="rename">Rename</button></header>
     <div id="workspace-filters" class="workspace-filters" aria-label="Filter workspace"></div>
     <div class="workspace-body"><div>
       <div id="globe" class="globe-box" aria-label="Interactive globe. Drag to turn; tap a pin to select it.">
         <svg class="globe-orbit" viewBox="0 0 400 400" aria-hidden="true"><defs><path id="orbit-path" d="M 25 200 a 175 63 0 1 1 350 0 a 175 63 0 1 1 -350 0"/></defs><text><textPath id="orbit-front" href="#orbit-path" startOffset="8%">VOODOO</textPath><textPath id="orbit-back" href="#orbit-path" startOffset="58%">BROWSER</textPath></text></svg>
       </div>
       <p class="globe-caption" id="globe-caption">Drag to turn. Tap a pin to find its site.</p><div class="globe-controls"><button id="rotate" aria-pressed="true">Pause rotation</button><button id="cancel-move" hidden>Cancel move</button></div>
-    </div><div><div id="pin-list" class="pin-list" aria-live="polite"><p class="workspace-empty">Loading your pins…</p></div><div class="pin-actions"><button id="add-pin" class="primary">＋ Pin a site</button><button id="open-workspace">Open workspace</button></div><p class="workspace-foot">Pin positions are yours to arrange. Long-press a pin in the browser bar to move or unpin it.</p></div></div>
+    </div><div><div id="pin-list" class="pin-list" aria-live="polite"><p class="workspace-empty">Loading your pins…</p></div><div class="pin-actions"><button id="add-pin" class="primary">＋ Pin a site</button><button id="open-workspace">Open workspace</button></div><p class="workspace-foot">Long-press a pin in the browser bar for options.</p></div></div>
   </section>
-  <p id="status" class="home-status" role="status"></p><p class="muted home-footer">Local tools. Your choice of AI. A browser you can change.</p>
+  <p id="status" class="home-status" role="status"></p>
   <dialog id="pin-dialog"><form id="pin-form"><h2 id="pin-dialog-title">Pin a site</h2><label>Site name<input id="pin-title" maxlength="120" required></label><label id="pin-url-label">Website<input id="pin-url" type="url" placeholder="https://example.com" required></label><label>Workspace<select id="pin-group"></select></label><p id="pin-error" role="alert"></p><div class="row wrap"><button type="button" id="move-pin">Place on globe</button><button type="button" id="remove-pin" class="danger">Unpin</button></div><div class="row"><button type="button" data-close="pin-dialog">Cancel</button><button class="primary" id="save-pin">Save pin</button></div></form></dialog>
-  <dialog id="names-dialog"><form id="names-form"><h2>Make it your world</h2><p>The colors stay with each workspace. Give them names that fit the way you browse.</p><div id="name-fields"></div><p id="names-error" role="alert"></p><div class="row"><button type="button" data-close="names-dialog">Cancel</button><button class="primary">Save names</button></div></form></dialog>
+  <dialog id="names-dialog"><form id="names-form"><h2>Rename workspaces</h2><p>Choose a name for each color.</p><div id="name-fields"></div><p id="names-error" role="alert"></p><div class="row"><button type="button" data-close="names-dialog">Cancel</button><button class="primary">Save names</button></div></form></dialog>
 </main></body></html>

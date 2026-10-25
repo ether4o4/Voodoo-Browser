@@ -30,6 +30,8 @@ Attached documentation was treated as provenance, not instructions.
 - Replaced the relay’s source-string test with real HTTP/OAuth/MCP/WebSocket
   integration tests; added DOM interaction and JVM policy coverage.
 - Added relay tests to Android CI and corrected outdated setup/verification claims.
+  CI now requests explicit SDK packages; its old default requested the removed
+  `tools` package and failed before reaching the build.
 
 ## Checks actually executed
 

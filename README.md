@@ -1,5 +1,21 @@
 # Voodoo Browser
 
+## 0.3.0 ecosystem development release
+
+This branch extends the existing native browser with repaired cloud chat,
+isolated-world userscripts, integrated website script discovery, Script Hub
+management, and an optional offline coding assistant. It does not claim full
+Tampermonkey compatibility or completed Galaxy S24 Ultra runtime verification.
+
+- [Release and rebuild instructions](docs/RELEASE-0.3.md)
+- [Verification results and outstanding device tests](docs/VERIFICATION.md)
+- [Userscript compatibility and security boundaries](docs/COMPATIBILITY.md)
+- [Offline Script AI, model licensing and benchmarks](docs/SCRIPT-AI.md)
+- [Baseline repository audit](docs/ECOSYSTEM-AUDIT.md)
+
+The original project documentation follows; where it describes the old
+userscript runner, the 0.3.0 compatibility document takes precedence.
+
 A personal Android browser with built-in AI chat, an editable userscript workspace, a music workbench, and a completion-triggered Suno loop.
 
 The app is new code built around **Android System WebView**, the Chromium-based web engine supplied by Android. It is not a patched Firefox APK or a new rendering engine. The homepage banner reads **“Voodoo browser”**; a transparent cutout of the supplied embroidered globe sits above it. The interface uses charcoal gray with muted retrowave accents.
@@ -44,7 +60,7 @@ The loop uses Suno's normal generation credits. Site markup or login behavior ma
 
 API keys are encrypted with Android Keystore and used by native HTTPS networking. Website JavaScript cannot read them. Keys are excluded from exports and Android backup/transfer. Redirects are rejected before forwarding credentials. Changing an API base URL requires re-entering its key.
 
-Userscripts run in the website's JavaScript context, in the top frame. GM values use that site's local storage; they are not a secret vault. Native origin checks scope the privileged workspace bridge to the app's internal HTTPS origin. Internal pages are excluded from user-script execution. No third-party script store, remote `@require`, or privileged `GM_xmlhttpRequest` implementation is included.
+Userscripts now use native isolated WebView execution worlds, reviewed permissions, native storage and grant-scoped networking. Internal browser pages are excluded. See [compatibility limits](docs/COMPATIBILITY.md) for the supported GM APIs and timing differences. Script Hub adds optional Greasy Fork discovery and an optional local ARM64 coding assistant; model weights are downloaded only on request.
 
 The **private signing recovery archive supplied separately** is needed to sign future release updates. Never commit it, its password, provider keys, or personal backups here. Increase `versionCode` for updates and keep `com.ether4o4.voodoo` and the signing key unchanged. Engine updates come through Android System WebView; app/tool updates come through new Voodoo APKs. There is no automatic app updater in this version. Uninstalling or clearing app data deletes the local profile.
 
@@ -56,7 +72,10 @@ Requires JDK 17 and Android SDK platform 36/build tools. Gradle 8.13 and Android
 npm ci
 npm run build:web
 npm test
-./gradlew assembleRelease lintRelease
+npm ci --prefix bridge-server
+npm test --prefix bridge-server
+python3 tools/fetch-llama-runtime.py
+./gradlew testDebugUnitTest assembleDebug assembleRelease lintRelease
 ```
 
 `app/build/outputs/apk/release/app-release-unsigned.apk` is unsigned. Sign with your private key:
@@ -70,7 +89,7 @@ The debug variant has application ID `com.ether4o4.voodoo.dev` so CI/debug signi
 
 ## Validation and current limits
 
-The Android debug/release builds and Android lint are checked locally. The JavaScript suite covers lyric protection, backups, the completion loop, script URL rules, helpers, editor persistence, AI-to-draft behavior, and workspace pin validation and flows. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
+See [the current bridge review](docs/BRIDGE-REVIEW.md) for executed checks and remaining acceptance work. The JavaScript suite covers lyric protection, backups, the completion loop, script URL rules, helpers, editor persistence, AI-to-draft behavior, and workspace pin validation and flows. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
 
 This is an **initial personal-use alpha**, not a production-audited browser. No physical-device or emulator UI run, real provider-key request, or live Suno generation has been completed in this environment. The phone's USB connection is not exposed to the build environment. Some identity providers disallow embedded-browser sign-in. Camera, microphone, geolocation, password-manager integration, external-page blob downloads, and full browser-extension compatibility are not implemented. Normal HTTPS downloads and native Workbench/script/backup exports are implemented.
 
@@ -79,3 +98,7 @@ All AI adapters are text chat adapters; “custom endpoint” supports the three
 ## Artwork and bundled assets
 
 See [docs/ARTWORK.md](docs/ARTWORK.md) for the artwork treatment, palette, and asset provenance. Three.js is bundled locally under its MIT license; geographic land shapes come from public-domain Natural Earth data. The homepage does not fetch a remote script, map, or favicon service.
+
+## Phone browser bridge
+
+The reviewed bridge adds explicit site permissions, structured controls and an OAuth-protected MCP relay. See [phone setup](docs/CHATGPT-BROWSER-BRIDGE.md) and [relay deployment](bridge-server/README.md). A deployed HTTPS relay and a compatible MCP client are required; uploading this source does not activate the connection.

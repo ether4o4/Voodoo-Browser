@@ -6,14 +6,27 @@ android {
         applicationId 'com.ether4o4.voodoo'
         minSdk 29
         targetSdk 36
-        versionCode 6
-        versionName '0.2.4'
+        versionCode 7
+        versionName '0.3.0'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes {
         debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev' }
         release { minifyEnabled false }
     }
+    packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += ['**/libvoodoo-completion.so'] } }
     lint { abortOnError true }
 }
-dependencies { implementation 'androidx.webkit:webkit:1.14.0' }
+tasks.register('verifyLocalRuntime') {
+    doLast {
+        if (!file('src/main/jniLibs/arm64-v8a/libvoodoo-completion.so').exists())
+            throw new GradleException('Run python3 tools/fetch-llama-runtime.py before building. Model weights are not required.')
+    }
+}
+tasks.named('preBuild').configure { dependsOn('verifyLocalRuntime') }
+dependencies {
+    implementation 'androidx.webkit:webkit:1.18.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}

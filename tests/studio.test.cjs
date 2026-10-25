@@ -36,3 +36,11 @@ test('Settings opens on first load and reused section routes preserve unsaved dr
   assert.equal(f.calls.filter(c=>c.op==='get-store'&&c.args.key==='studio').length,1);
  }finally{f.dom.window.close();}
 });
+test('chat still sends when unrelated Studio revision saving fails',async()=>{
+ const f=await fixture({'put-store':async()=>{throw Error('Workspace changed in another tab');}});
+ try{f.$('prompt').value='Hello';f.$('chat-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();await tick();assert.ok(f.calls.some(c=>c.op==='chat'));assert.match(f.$('messages').textContent,/Done/);assert.match(f.$('status').textContent,/not saved/);}finally{f.dom.window.close();}
+});
+test('cloud script sharing is off by default and explicit per request',async()=>{
+ const f=await fixture();
+ try{f.$('prompt').value='Hi';f.$('chat-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();await tick();const chat=f.calls.find(c=>c.op==='chat');assert.doesNotMatch(chat.args.system,/My Voodoo script|Current draft/);f.$('send-script').checked=true;f.$('prompt').value='Explain my script';f.$('chat-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();await tick();assert.match(f.calls.filter(c=>c.op==='chat').at(-1).args.system,/Current draft/);assert.equal(f.$('send-script').checked,false);}finally{f.dom.window.close();}
+});

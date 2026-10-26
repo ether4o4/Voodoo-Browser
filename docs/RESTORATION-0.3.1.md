@@ -29,7 +29,9 @@ does not reproduce its uncommitted assets.
   draft state, import/export, explicit activation and active prompt inclusion.
   The previous writing tool and its stored data remain accessible as Writing
   archive. Newer script diagnostics, updates, collections and local AI remain.
-- Mic performs dictation without sending. Explicit Voice conversation mode sends
+- Mic appends dictation to the existing unsent draft without sending. Voice
+  conversation refuses to start with an unsent draft; typing during conversation
+  stops it and ignores stale recognition/replies. Explicit Voice conversation mode sends
   recognized text and speaks replies. Native microphone permission, foreground
   ownership, cancellation epochs and stop-on-navigation limit voice lifetime.
   Device speech services and physical-phone behavior remain unverified.

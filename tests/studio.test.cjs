@@ -1,6 +1,31 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');const root=path.join(__dirname,'../app/src/main/assets');
 const tick=()=>new Promise(r=>setTimeout(r,30));
+test('Mic appends to the current unsent draft and never submits it',async()=>{
+ let recognize;const f=await fixture({'speech-listen':()=>new Promise(r=>recognize=r)});
+ try{
+  f.$('prompt').value='Typed draft';f.$('mic').click();await tick();
+  f.$('prompt').value+=' and later edit';f.$('prompt').dispatchEvent(new f.w.Event('input'));
+  recognize('Dictated addition');await tick();
+  assert.equal(f.$('prompt').value,'Typed draft and later edit\nDictated addition');
+  assert.equal(f.calls.some(c=>c.op==='chat'),false);assert.match(f.$('voice-status').textContent,/Review and send/);
+ }finally{f.dom.window.close();}
+});
+test('Voice conversation refuses to start with an unsent draft',async()=>{
+ const f=await fixture();try{
+  f.$('prompt').value='Keep this unsent draft';f.$('voice-conversation').click();await tick();
+  assert.equal(f.$('prompt').value,'Keep this unsent draft');assert.equal(f.calls.some(c=>c.op==='speech-listen'||c.op==='chat'),false);
+  assert.match(f.$('voice-status').textContent,/Send or clear your draft/);assert.equal(f.$('voice-conversation').getAttribute('aria-pressed'),'false');
+ }finally{f.dom.window.close();}
+});
+test('typing during conversation stops recognition and ignores its stale result',async()=>{
+ let recognize;const f=await fixture({'speech-listen':()=>new Promise(r=>recognize=r)});
+ try{
+  f.$('voice-conversation').click();await tick();f.$('prompt').value='New typed draft';f.$('prompt').dispatchEvent(new f.w.Event('input'));
+  recognize('Stale spoken text');await tick();assert.equal(f.$('prompt').value,'New typed draft');assert.equal(f.calls.some(c=>c.op==='chat'),false);
+  assert.equal(f.$('voice-conversation').getAttribute('aria-pressed'),'false');assert.match(f.$('voice-status').textContent,/Send or clear your draft/);
+ }finally{f.dom.window.close();}
+});
 test('failed skill save cannot erase a queued save or newer draft edits',async()=>{
  let rejectFirst,attempts=0;const firstWrite=new Promise((resolve,reject)=>{rejectFirst=reject;});
  const f=await fixture({'put-store':async(args,data)=>{

@@ -47,15 +47,31 @@ Script fixes cover document-body timing, repeated Run once scheduling, session
 checks after permission dialogs, request cleanup on pagehide, normalized blocklist
 hosts, discovery on actual page paths and cancellation just after publishing the
 local AI process. Runtime downloads publish verified cache files atomically and
-recover from truncated/interrupted cache entries.
+recover from truncated/interrupted cache entries. Skill saves serialize saved-state
+changes without rolling back newer drafts. Voice turns, permission callbacks and
+utterance IDs reject stopped/replaced requests; speech recognizers are released
+on completion. Canonical host case, HTTPS port 443 and an empty root path do not
+cause false navigation failures; changed destinations still fail closed.
 
 ## Validation and acceptance boundary
 
-Local Windows: 79 JS/DOM tests and two mocked Python download tests passed.
-Local relay integration cannot be called passed: loopback first required sandbox
-approval, then Windows directory-fsync semantics rejected state saves. Linux CI
-is required. Native unit tests, APK builds and lint run only in GitHub Actions.
-See the exact-head run associated with the delivered commit for terminal results.
+GitHub Actions run [40268293186](https://github.com/ether4o4/Voodoo-Browser/actions/runs/40268293186)
+passed on exact commit `fffa46ecdb33040c5de342d2570598ea11513551`: 83 browser/DOM tests,
+9 relay integration tests, 2 mocked download tests and 21 JVM tests. Debug and
+unsigned release builds, release lint, the reproducible web bundle and packaged
+asset/package/signature verification passed. The final commit's run and its
+`verification/build-evidence.json` are authoritative for the delivered APK bytes.
+
+Local Windows passed the 80-test browser suite before the final three targeted
+regressions; all 16 targeted Studio/voice tests passed after those changes. Relay
+integration required Linux CI because Windows directory-fsync rejects state saves.
+Android builds and native tests were performed only on GitHub Actions.
+
+Synthetic-data Playwright previews covered black home, Favorites, chat, script
+and skill editors. Chat/skill pages at 320, 412 and 1280 CSS pixels had no horizontal
+page overflow; repeated section changes preserved draft text. Screenshots were
+inspected locally. These are browser asset previews, not native Android screenshots
+or comparisons against the unavailable recovery APK. No live accounts were used.
 
 No phone/emulator, live account, microphone, provider, signed-in site, model
 inference or live ChatGPT MCP test has been performed. The bridge is not declared

@@ -4,6 +4,10 @@
   <div class="home-art"><img id="home-image" src="branding/voodoo-cutout.png" alt="VOODOO BROWSER — an embroidered globe with colorful pins" width="290" height="260"></div>
   <h1>Voodoo browser</h1>
   <form id="search-form" class="search-box"><input id="search" aria-label="Search the web or enter an address" placeholder="Search or enter an address…" autocomplete="off"><button aria-label="Search">↗</button></form>
+  <section class="favorites-section" aria-labelledby="favorites-title">
+    <header class="recent-heading"><h2 id="favorites-title">Favorites</h2><div><button id="favorite-add">+ Add</button><button id="favorites-all" class="text">Show all</button><button id="favorites-retry" class="text" hidden>Retry</button></div></header>
+    <div id="favorites" class="recent-sites" aria-busy="true"></div><p id="favorites-status" class="recent-status" role="status">Loading favorites.</p>
+  </section>
   <section class="recent-section" aria-labelledby="recent-title">
     <header class="recent-heading"><h2 id="recent-title">Recently visited</h2><button id="recent-retry" class="text" hidden>Retry</button></header>
     <div id="recent-sites" class="recent-sites" aria-busy="true"></div>

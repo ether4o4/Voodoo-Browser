@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {createRenderScheduler} from './render-scheduler.mjs';
 
-const colors={cyan:'#8bbac4',pink:'#ca96b5',green:'#acc19c',gold:'#d2b580'};
+const colors={cyan:'#62d9ff',pink:'#ff77b7',green:'#a4e86b',gold:'#ffd166',favorites:'#62e8c1'};
 const radius=1.22;
 export function coordinates(lat,lon,r=radius){const phi=(lon+180)*Math.PI/180,theta=(90-lat)*Math.PI/180;return new THREE.Vector3(-r*Math.cos(phi)*Math.sin(theta),r*Math.cos(theta),r*Math.sin(phi)*Math.sin(theta));}
 export function locationAt(point){const n=point.clone().normalize();let phi=Math.atan2(n.z,-n.x);if(phi<0)phi+=Math.PI*2;return {lat:Math.max(-85,Math.min(85,Math.asin(n.y)*180/Math.PI)),lon:phi*180/Math.PI-180};}

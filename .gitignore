@@ -7,3 +7,9 @@ local.properties
 signing.properties
 dist/
 node_modules/
+node_modules
+app/src/main/jniLibs/
+*.gguf
+__pycache__/
+output/
+.playwright-cli/

@@ -24,11 +24,15 @@ final class SecureKeys {
         return gen.generateKey();
     }
     void put(String id,String value) throws Exception {
-        if(value.isEmpty()){ prefs.edit().remove(id).commit(); return; }
+        put(id,value,null);
+    }
+    void put(String id,String value,String base) throws Exception {
+        if(value.isEmpty()){ if(!prefs.edit().remove(id).remove("binding."+id).commit())throw new Exception("Could not remove key."); return; }
         Cipher c=Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE,key());
         c.updateAAD(id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         String encrypted=Base64.encodeToString(c.getIV(),Base64.NO_WRAP)+":"+Base64.encodeToString(c.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)),Base64.NO_WRAP);
-        if(!prefs.edit().putString(id,encrypted).commit())throw new Exception("Could not save this key.");
+        SharedPreferences.Editor edit=prefs.edit().putString(id,encrypted);if(base!=null)edit.putString("binding."+id,base);
+        if(!edit.commit())throw new Exception("Could not save this key.");
     }
     boolean has(String id){return prefs.contains(id);}
     String get(String id) throws Exception {
@@ -37,5 +41,13 @@ final class SecureKeys {
         c.init(Cipher.DECRYPT_MODE,key(),new GCMParameterSpec(128,Base64.decode(parts[0],Base64.NO_WRAP)));
         c.updateAAD(id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return new String(c.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),java.nio.charset.StandardCharsets.UTF_8);
+    }
+    String get(String id,String base)throws Exception {
+        String binding=prefs.getString("binding."+id,null);
+        if(binding!=null&&!binding.equals(base))throw new Exception("Key endpoint changed. Re-enter the key.");
+        String value=get(id);
+        // One-time binding for an existing key: only the saved native profile reaches here.
+        if(binding==null&&!value.isEmpty()&&!prefs.edit().putString("binding."+id,base).commit())throw new Exception("Could not bind provider key.");
+        return value;
     }
 }

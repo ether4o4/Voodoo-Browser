@@ -35,7 +35,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     catch{if(request!==recentSerial)return;$('recent-status').hidden=false;$('recent-status').textContent='Couldn’t load recent sites. Try again.';$('recent-retry').hidden=false;}
     finally{if(request===recentSerial)list.setAttribute('aria-busy','false');}
   }
-  function render(){
+  function renderFavorites(){
+    const list=$('favorites');list.replaceChildren();
+    const favorites=state.pins.filter(pin=>pin.group==='favorites');
+    for(const pin of favorites.slice(0,6)){
+      const card=document.createElement('button');card.className='recent-card';card.type='button';
+      const label=document.createElement('strong');label.textContent=pin.title;card.append(dot('favorites'),label);
+      card.onclick=run(()=>Host.call('open-pin',{pinId:pin.id}));list.append(card);
+    }
+    list.setAttribute('aria-busy','false');$('favorites-retry').hidden=true;$('favorites-status').hidden=!!favorites.length;
+    $('favorites-status').textContent=favorites.length?'':'Add a favorite to keep it here.';
+  }
+  async function refreshFavorites(){
+    $('favorites').setAttribute('aria-busy','true');
+    try{await refresh();}catch(e){$('favorites').setAttribute('aria-busy','false');$('favorites-status').hidden=false;$('favorites-status').textContent='Could not load favorites. Try again.';$('favorites-retry').hidden=false;throw e;}
+  }
+  function render(){renderFavorites();
     $('workspace-filters').replaceChildren();for(const group of ['all',...P.groups]){const b=document.createElement('button');b.textContent=group==='all'?'All pins':state.names[group];if(group!=='all')b.prepend(dot(group));b.classList.toggle('active',state.active===group);b.setAttribute('aria-pressed',String(state.active===group));b.onclick=run(async()=>{await Host.call('set-workspace',{group});selected=null;cancelMove();await refresh();});$('workspace-filters').append(b);}
     $('pin-list').replaceChildren();const list=visible();$('open-workspace').disabled=!list.length;
     if(!list.length){const empty=document.createElement('p');empty.className='workspace-empty';empty.textContent='Your next favorite spot belongs here. Open a site and tap ＋ in the pin bar, or add one below.';$('pin-list').append(empty);}
@@ -46,9 +61,13 @@ document.addEventListener('DOMContentLoaded',()=>{
       const more=document.createElement('button');more.textContent='···';more.className='pin-more';more.setAttribute('aria-label','Edit '+pin.title);more.onclick=()=>edit(pin);row.append(open,more);$('pin-list').append(row);
     }
   }
-  async function refresh(newId){const request=++serial;const data=await Host.call('pins');if(request!==serial)return;state={pins:P.validate(data.pins),names:{...P.names,...data.names},active:['all',...P.groups].includes(data.active)?data.active:'all'};if(selected&&!state.pins.some(p=>p.id===selected))selected=null;render();globe?.setPins(visible(),newId);globe?.select(selected);}
+  async function refresh(newId){const request=++serial;const data=await Host.call('pins');if(request!==serial)return;state={pins:P.validate(data.pins),names:P.workspaceNames(data.names),active:['all',...P.groups].includes(data.active)?data.active:'all'};if(selected&&!state.pins.some(p=>p.id===selected))selected=null;render();globe?.setPins(visible(),newId);globe?.select(selected);}
   function edit(pin){editing=pin?.id||null;$('pin-dialog-title').textContent=pin?'Edit pin':'Pin a site';$('pin-title').value=pin?.title||'';$('pin-url').value=pin?.url||'';$('pin-url').disabled=!!pin;$('pin-url-label').hidden=!!pin;$('pin-error').textContent='';$('pin-group').replaceChildren();for(const group of P.groups){const o=document.createElement('option');o.value=group;o.textContent=state.names[group];$('pin-group').append(o);}$('pin-group').value=pin?.group||(state.active==='all'?'cyan':state.active);$('move-pin').hidden=!pin||!globe;$('remove-pin').hidden=!pin;$('pin-dialog').showModal();}
   function cancelMove(){moving=null;globe?.move(null);$('cancel-move').hidden=true;$('globe-caption').textContent=globe?'Drag to turn. Tap a pin to find its site.':'Your pins are available in the list.';}
+  $('search').addEventListener('focus',()=>{$('search').value='';});
+  $('favorite-add').onclick=()=>{edit(null);$('pin-group').value='favorites';};
+  $('favorites-retry').onclick=run(refreshFavorites);
+  $('favorites-all').onclick=run(async()=>{await Host.call('set-workspace',{group:'favorites'});await refresh();$('workspace-title').scrollIntoView({behavior:'smooth',block:'start'});});
   $('search-form').onsubmit=e=>{e.preventDefault();Host.call('navigate',{text:$('search').value}).catch(fail);};
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
   $('recent-retry').onclick=refreshRecentSites;
@@ -59,10 +78,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   $('cancel-move').onclick=cancelMove;
   $('rotate').textContent=rotating?'Pause rotation':'Rotate globe';$('rotate').setAttribute('aria-pressed',String(rotating));$('rotate').onclick=()=>{rotating=!rotating;globe?.rotate(rotating);$('rotate').textContent=rotating?'Pause rotation':'Rotate globe';$('rotate').setAttribute('aria-pressed',String(rotating));};
   $('open-workspace').onclick=run(async()=>{const r=await Host.call('open-workspace',{group:state.active});$('status').textContent=r.opened+' sites opened'+(r.remaining?'; '+r.remaining+' need space in the tab bar.':'.');});
-  $('rename').onclick=()=>{$('name-fields').replaceChildren();for(const group of P.groups){const label=document.createElement('label');label.textContent=group[0].toUpperCase()+group.slice(1);label.prepend(dot(group));const input=document.createElement('input');input.id='name-'+group;input.value=state.names[group];input.maxLength=20;input.required=true;label.append(input);$('name-fields').append(label);}$('names-error').textContent='';$('names-dialog').showModal();};
-  $('names-form').onsubmit=async e=>{e.preventDefault();try{const names={};for(const group of P.groups){names[group]=$('name-'+group).value.trim();if(!names[group])throw Error('Give each workspace a name.');}await Host.call('rename-workspaces',{names});$('names-dialog').close();await refresh();}catch(e){$('names-error').textContent=e.message;}};
-  globalThis.VoodooHome={refreshPins:id=>refresh(id).catch(fail),refreshRecentSites,setActive:value=>{active=value;globe?.setActive(value);if(value){refresh().catch(fail);refreshRecentSites();}}};
-  refresh().catch(fail);
+  $('rename').onclick=()=>{$('name-fields').replaceChildren();for(const group of P.groups.filter(g=>g!=='favorites')){const label=document.createElement('label');label.textContent=group[0].toUpperCase()+group.slice(1);label.prepend(dot(group));const input=document.createElement('input');input.id='name-'+group;input.value=state.names[group];input.maxLength=20;input.required=true;label.append(input);$('name-fields').append(label);}$('names-error').textContent='';$('names-dialog').showModal();};
+  $('names-form').onsubmit=async e=>{e.preventDefault();try{const names={favorites:'Favorites'};for(const group of P.groups.filter(g=>g!=='favorites')){names[group]=$('name-'+group).value.trim();if(!names[group])throw Error('Give each workspace a name.');}await Host.call('rename-workspaces',{names});$('names-dialog').close();await refresh();}catch(e){$('names-error').textContent=e.message;}};
+  addEventListener('hashchange',()=>{if(['#favorites','#saved'].includes(location.hash))refreshFavorites().then(()=>$('workspace-title').scrollIntoView({block:'start'})).catch(fail);});
+  globalThis.VoodooHome={refreshPins:id=>refresh(id).catch(fail),refreshRecentSites,setActive:value=>{active=value;globe?.setActive(value);if(value){refreshFavorites().catch(fail);refreshRecentSites();}}};
+  refreshFavorites().catch(fail);
   refreshRecentSites();
   Host.call('get-store',{key:'options'}).then(o=>{if(o?.homeImage?.startsWith('data:image/'))$('home-image').src=o.homeImage;}).catch(fail);
   VoodooGlobe.create($('globe'),{onSelect:id=>{selected=id;render();globe?.select(id);const pin=state.pins.find(p=>p.id===id);$('globe-caption').textContent=pin?pin.title+' · '+state.names[pin.group]:'';},onMove:async(id,lat,lon)=>{try{await Host.call('update-pin',{pin:{id,lat,lon}});cancelMove();await refresh(id);$('status').textContent='Pin placed.';}catch(e){fail(e);}}}).then(instance=>{globe=instance;globe.setPins(visible());globe.setActive(active);globe.rotate(rotating);}).catch(()=>{const img=document.createElement('img');img.src='branding/voodoo-cutout.png';img.alt='Embroidered Voodoo globe';img.className='globe-fallback';$('globe').prepend(img);$('rotate').hidden=true;cancelMove();});

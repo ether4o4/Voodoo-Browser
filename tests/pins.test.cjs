@@ -2,6 +2,20 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {JSDOM}=require('jsdom'),P=require('../app/src/main/assets/pins.js');const root=path.join(__dirname,'../app/src/main/assets');const tick=()=>new Promise(r=>setTimeout(r,20));
 const sample=()=>({id:'pin-1',title:'Music',url:'https://example.com/create',group:'pink',lat:35,lon:-70});
 test('pin backups retain workspace and position and reject unsafe or malformed entries',()=>{const pin=sample();assert.deepEqual(P.validate([pin]),[pin]);for(const patch of [{url:'http://example.com'},{url:'javascript:alert(1)'},{url:'https://key@example.com'},{url:'https://APPASSETS.ANDROIDPLATFORM.NET/assets/home.html'},{group:'unknown'},{lat:NaN},{lat:86},{lon:-181},{id:''}])assert.throws(()=>P.validate([{...pin,...patch}]));assert.throws(()=>P.validate([pin,pin]));assert.throws(()=>P.validate(Array(61).fill(pin)));assert.equal(P.validate([{...pin,icon:'https://tracker.test/image.png'}])[0].icon,undefined);});
+
+test('Favorites backups preserve their fifth group and only the four custom names can change',()=>{
+ const favorite={...sample(),group:'favorites'};assert.deepEqual(P.validate([favorite]),[favorite]);
+ assert.equal(P.workspaceNames({gold:'  Archive  '}).gold,'Archive');assert.equal(P.workspaceNames({}).favorites,'Favorites');
+ assert.throws(()=>P.workspaceNames({favorites:'Rename'}));assert.throws(()=>P.workspaceNames({gold:' '}));assert.throws(()=>P.workspaceNames({cyan:'x'.repeat(21)}));
+});
+
+test('Favorites load, add, open, filter and remain after refresh; search clears on focus',async()=>{
+ const f=await fixture();f.$('favorite-add').click();assert.equal(f.$('pin-group').value,'favorites');
+ f.$('pin-title').value='Favorite';f.$('pin-url').value='https://favorite.example';f.$('pin-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();
+ assert.equal(f.data.pins[1].group,'favorites');assert.match(f.$('favorites').textContent,/Favorite/);f.$('favorites').querySelector('button').click();await tick();assert.equal(f.calls.at(-1).a.pinId,'pin-2');
+ f.$('favorites-all').click();await tick();assert.equal(f.data.active,'favorites');f.w.VoodooHome.setActive(true);await tick();assert.match(f.$('favorites').textContent,/Favorite/);
+ f.$('search').value='old query';f.$('search').dispatchEvent(new f.w.Event('focus'));assert.equal(f.$('search').value,'');f.dom.window.close();
+});
 async function fixture(recentSites=[]){
  const dom=new JSDOM(fs.readFileSync(path.join(root,'home.html'),'utf8'),{url:'https://appassets.androidplatform.net/assets/home.html',runScripts:'outside-only'}),w=dom.window,data={pins:[sample()],names:{...P.names},active:'all',recentSites},calls=[],globeCalls=[];let callbacks;
  w.matchMedia=()=>({matches:false});w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};

@@ -1,6 +1,25 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');const root=path.join(__dirname,'../app/src/main/assets');
 const tick=()=>new Promise(r=>setTimeout(r,30));
+test('failed voice chat cannot replace a newly typed draft',async()=>{
+ let rejectChat;const f=await fixture({'speech-listen':async()=>'Old spoken request',chat:()=>new Promise((resolve,reject)=>rejectChat=reject)});
+ try{
+  f.$('voice-conversation').click();await tick();assert.ok(rejectChat);
+  f.$('prompt').value='New draft while waiting';f.$('prompt').dispatchEvent(new f.w.Event('input'));
+  rejectChat(Error('Request failed'));await tick();await tick();
+  assert.equal(f.$('prompt').value,'New draft while waiting');assert.equal(f.data.studio.chat.messages.length,0);assert.equal(f.$('voice-conversation').getAttribute('aria-pressed'),'false');
+ }finally{f.dom.window.close();}
+});
+for(const phase of ['profiles','context'])test('typing during delayed '+phase+' preparation keeps the newer draft',async()=>{
+ let release,calls=0;const pending=new Promise(r=>release=r);
+ const profiles=[{id:'venice',name:'Venice AI',kind:'openai',base:'https://api.venice.ai/api/v1',model:'fixture-code-model',hasKey:true}];
+ const f=await fixture({[phase]:async()=>{if(++calls>1)await pending;return phase==='profiles'?profiles:{url:'https://example.com',title:'Fixture'};}});
+ try{
+  f.$('send-context').checked=true;f.$('prompt').value='Original request';f.$('chat-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();assert.equal(calls,2);
+  f.$('prompt').value='New unsent draft';f.$('prompt').dispatchEvent(new f.w.Event('input'));release();await tick();await tick();
+  assert.equal(f.$('prompt').value,'New unsent draft');assert.equal(f.calls.find(c=>c.op==='chat').args.messages[0].content,'Original request');
+ }finally{f.dom.window.close();}
+});
 test('Mic appends to the current unsent draft and never submits it',async()=>{
  let recognize;const f=await fixture({'speech-listen':()=>new Promise(r=>recognize=r)});
  try{

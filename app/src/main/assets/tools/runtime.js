@@ -92,7 +92,7 @@ function VoodooRuntime(config, entry) {
       const init=await call('ready');values=Object.assign(Object.create(null),init.values||{});resources=init.resources||{};
       const run=()=>{if(!live||!E.matches(meta,location.href))return;const began=performance.now();try{entry(...apiArgs);call('health',{state:'enabled',duration:performance.now()-began}).catch(()=>{});}catch(e){log('error',e.stack||e.message);call('health',{state:'failed',duration:performance.now()-began}).catch(()=>{});}};
       if(meta.runAt==='document-start')run();
-      else if(meta.runAt==='document-body'&&!document.body){const timer=setInterval(()=>{if(document.body){clearInterval(timer);run();}},10);}
+      else if(meta.runAt==='document-body'){if(document.body)run();else{const timer=setInterval(()=>{if(!live||document.body){clearInterval(timer);if(live)run();}},10);}}
       else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>meta.runAt==='document-idle'?setTimeout(run,0):run(),{once:true});
       else meta.runAt==='document-idle'?setTimeout(run,0):run();
     }catch(e){log('error',e.message);}

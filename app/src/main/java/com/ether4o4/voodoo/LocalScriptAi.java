@@ -103,7 +103,7 @@ final class LocalScriptAi {
                 ProcessBuilder builder=new ProcessBuilder(command);builder.directory(models);builder.environment().put("LD_LIBRARY_PATH",a.getApplicationInfo().nativeLibraryDir);builder.environment().put("GGML_BACKEND_PATH",a.getApplicationInfo().nativeLibraryDir);
                 // No shell, network listener, user-provided executable, or command-line interpolation.
                 long began=System.nanoTime();if(cancelled)throw new IOException("Cancelled.");
-                child=builder.start();process=child;child.getOutputStream().close();inferenceState="generating";Process running=child;
+                child=builder.start();process=child;if(cancelled)throw new IOException("Cancelled.");child.getOutputStream().close();inferenceState="generating";Process running=child;
                 timeout=watchdog.schedule(()->{cancelled=true;running.destroyForcibly();},240,TimeUnit.SECONDS);
                 StringBuilder diagnostic=new StringBuilder();Thread stderr=new Thread(()->{try(Reader reader=new InputStreamReader(running.getErrorStream(),StandardCharsets.UTF_8)){char[] buffer=new char[2048];int n;while((n=reader.read(buffer))!=-1)synchronized(diagnostic){diagnostic.append(buffer,0,n);if(diagnostic.length()>60000)diagnostic.delete(0,diagnostic.length()-60000);}}catch(IOException ignored){}},"script-ai-stderr");stderr.start();
                 StringBuilder output=new StringBuilder();long first=0;

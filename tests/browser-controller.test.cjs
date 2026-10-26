@@ -16,6 +16,51 @@ test('read excludes private fields and text while retaining useful controls',t=>
  const f=setup(t,'<body><p>Hello there</p><button>Save</button><input type=password value=secret><input autocomplete=cc-number value=4111><div data-voodoo-private>Hidden secret</div><textarea>Draft secret</textarea><script>secret</script>');
  const s=f.read();assert.equal(s.text,'Hello there Save');assert.equal(s.elements.length,2);assert.equal(s.elements[0].name,'Save');assert.ok(!JSON.stringify(s).includes('Hidden secret'));assert.ok(!JSON.stringify(s).includes('4111'));
 });
+
+test('the entire snapshot redacts private labels, descendants, editable drafts and frame titles',t=>{
+ const f=setup(t,`<body><button>Save <span data-voodoo-private>PRIVATE_CHILD</span><span hidden>HIDDEN_CHILD</span></button>
+ <label for=x>Public label <span data-voodoo-private>PRIVATE_LABEL</span></label><input id=x value=INPUT_DRAFT>
+ <textarea>TEXTAREA_DRAFT</textarea><div contenteditable=true>EDITABLE_DRAFT</div>
+ <span id=label>Safe <span aria-hidden=true>ARIA_HIDDEN</span></span><button aria-labelledby=label>Go</button>
+ <iframe title=FRAME_SECRET data-voodoo-private></iframe>`);
+ const s=f.read(),serialized=JSON.stringify(s);
+ for(const secret of ['PRIVATE_CHILD','HIDDEN_CHILD','PRIVATE_LABEL','INPUT_DRAFT','TEXTAREA_DRAFT','EDITABLE_DRAFT','ARIA_HIDDEN','FRAME_SECRET'])assert.ok(!serialized.includes(secret),secret);
+ assert.equal(s.elements[0].name,'Save');assert.equal(s.elements[1].name,'Public label');assert.equal(s.elements[2].name,'');
+});
+
+test('same document routes invalidate references even when the control is unchanged',t=>{
+ const f=setup(t,'<button>Delete record</button>'),s=f.read();let clicked=0;f.w.document.querySelector('button').onclick=()=>clicked++;
+ f.w.history.pushState({},'','/another-record');assert.equal(f.send('click',f.reference(s)).ok,false);assert.equal(clicked,0);
+});
+
+test('effective fieldset disability rejects writes while retaining the first legend exception',t=>{
+ const f=setup(t,'<fieldset disabled><legend><button id=allowed>Legend</button></legend><input><button>Save</button></fieldset>'),s=f.read();
+ assert.equal(s.elements[0].enabled,true);assert.equal(s.elements[1].enabled,false);assert.equal(s.elements[2].enabled,false);
+ assert.equal(f.send('type',{...f.reference(s,1),text:'no'}).ok,false);assert.equal(f.w.document.querySelector('input').value,'');
+ assert.equal(f.send('click',f.reference(s,2)).ok,false);assert.equal(f.send('click',f.reference(s)).ok,true);
+});
+
+test('form overrides follow document base URI and image submitters are checked',t=>{
+ for(const tag of ['button type=submit','input type=image']){
+  const f=setup(t,`<base href="https://other.example/"><form action="https://example.com/save"><${tag} formaction="save">Submit</form>`),s=f.read();
+  let clicked=0;f.w.document.querySelector('form').onclick=()=>clicked++;
+  assert.equal(f.send('click',f.reference(s)).ok,false);assert.equal(clicked,0);
+ }
+ const f=setup(t,'<form action="https://other.example/"><button type=button>Local toggle</button></form>'),s=f.read();assert.equal(f.send('click',f.reference(s)).ok,true);
+});
+
+test('select chooses the exact enabled duplicate and rejects disabled groups or page replacement',t=>{
+ const f=setup(t,'<select><optgroup disabled><option value=x>Blocked group</option></optgroup><option disabled value=x>Blocked option</option><option value=x>Allowed</option><option value=y>Y</option></select>');
+ let s=f.read();assert.equal(f.send('select',{...f.reference(s),value:'x'}).ok,true);assert.equal(f.w.document.querySelector('select').selectedIndex,2);
+ const select=f.w.document.querySelector('select');select.options[2].disabled=true;s=f.read();assert.equal(f.send('select',{...f.reference(s),value:'x'}).ok,false);
+ select.options[2].disabled=false;select.onchange=()=>select.selectedIndex=0;s=f.read();assert.equal(f.send('select',{...f.reference(s),value:'x'}).ok,false);
+});
+
+test('navigation readiness reports the actual document load state',t=>{
+ const f=setup(t,'<body>Page');Object.defineProperty(f.w.document,'readyState',{configurable:true,value:'loading'});
+ assert.equal(f.send('load_state').data.ready,false);
+ Object.defineProperty(f.w.document,'readyState',{value:'complete'});assert.equal(f.send('load_state').data.ready,true);assert.equal(f.send('load_state').data.url,'https://example.com/page');
+});
 test('element references retain node identity when other elements are inserted',t=>{
  const f=setup(t,'<body><button id=save>Save</button>'),s=f.read();let saved=0,wrong=0;
  f.w.document.querySelector('#save').onclick=()=>saved++;const b=f.w.document.createElement('button');b.textContent='Delete';b.onclick=()=>wrong++;f.w.document.body.prepend(b);

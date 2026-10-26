@@ -107,3 +107,17 @@ test('refuses corrupt state, weak secrets and non-HTTPS production configuration
   const f = await fixture(t); assert.throws(() => createBridge({ ...f.config, testOnlyAllowHttp: false }), /HTTPS/); assert.throws(() => createBridge({ ...f.config, ownerSecret: 'weak' }), /secrets/);
   fs.writeFileSync(f.config.stateFile, '{bad'); assert.throws(() => createBridge(f.config));
 });
+
+test('a saturated work queue still accepts one bounded cancellation command', async t => {
+  const f=await fixture(t), d=await f.pair(), ws=await f.connect(d), client=await f.client();
+  const received=[];let twenty, cancel;const full=new Promise(r=>twenty=r), cancelled=new Promise(r=>cancel=r);
+  ws.on('message',raw=>{const c=JSON.parse(raw);received.push(c);if(received.filter(x=>x.op!=='cancel_task').length===20)twenty();if(c.op==='cancel_task')cancel(c);});
+  const work=Array.from({length:20},()=>client.callTool({name:'browser_list_tabs',arguments:{}}));
+  await full;
+  assert.equal((await client.callTool({name:'browser_list_tabs',arguments:{}})).isError,true);
+  const pendingCancel=client.callTool({name:'browser_cancel_task',arguments:{}}), command=await cancelled;
+  assert.equal((await client.callTool({name:'browser_cancel_task',arguments:{}})).isError,true);
+  ws.send(JSON.stringify({type:'result',id:command.id,ok:true,data:{cancelled:true}}));
+  for(const c of received.filter(x=>x.op!=='cancel_task'))ws.send(JSON.stringify({type:'result',id:c.id,ok:false,error:'Cancelled before execution.'}));
+  assert.equal((await pendingCancel).isError,false);assert.ok((await Promise.all(work)).every(r=>r.isError));
+});

@@ -6,6 +6,7 @@ import java.util.regex.*;
 
 /** Native scope checks keep scripts for unrelated sites out of each page's JS context. */
 final class ScriptRules {
+    static String canonicalHost(String host){return host==null?"":host.toLowerCase(java.util.Locale.ROOT).replaceFirst("\\.$", "");}
     final ArrayList<String> matches=new ArrayList<>(),excludes=new ArrayList<>(),includes=new ArrayList<>(),excludeGlobs=new ArrayList<>();
     final Map<String,List<String>> fields=new LinkedHashMap<>();
     static final Set<String> APIS=new HashSet<>(Arrays.asList("addStyle","addElement","getValue","setValue","deleteValue","listValues","getValues","setValues","deleteValues","addValueChangeListener","removeValueChangeListener","xmlhttpRequest","getResourceText","getResourceURL","download","setClipboard","registerMenuCommand","unregisterMenuCommand","notification","info","log","openInTab"));

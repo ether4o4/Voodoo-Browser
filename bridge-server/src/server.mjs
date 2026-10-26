@@ -40,14 +40,17 @@ export function createBridge(config) {
     const d = state.devices[selected], ws = sockets.get(selected);
     if (!d || d.revoked) throw new Error('Choose a paired device with browser_list_devices and pass deviceId.');
     if (!ws || ws.readyState !== 1) throw new Error('Device is offline. Open Voodoo and reconnect the bridge.');
-    if (pending.size >= 30 || [...pending.values()].filter(p => p.ws === ws).length >= 20) throw new Error('Bridge queue is full.');
+    const cancelling = definition.op === 'cancel_task';
+    const devicePending = [...pending.values()].filter(p => p.ws === ws);
+    // Reserve one bounded cancellation slot per device even when ordinary work is full.
+    if (cancelling ? devicePending.some(p => p.cancelling) : (pending.size >= 30 || devicePending.filter(p => !p.cancelling).length >= 20)) throw new Error('Bridge queue is full.');
     const { deviceId, ...fields } = args;
     const commandId = random(), duration = config.commandTimeoutMs || 30000;
     const command = { ...fields, id: commandId, op: definition.op, deadline: Date.now() + duration };
     return new Promise(resolve => {
       const timer = setTimeout(() => finish({ ok: false, commandId, uncertain: true, error: 'Device timeout. Inspect task status and the page before retrying; do not repeat a write blindly.' }), duration + 250);
       const finish = value => { clearTimeout(timer); pending.delete(commandId); resolve(value); };
-      pending.set(commandId, { ws, deviceId: selected, finish });
+      pending.set(commandId, { ws, deviceId: selected, finish, cancelling });
       ws.send(JSON.stringify({ type: 'command', ...command }), error => { if (error) finish({ ok: false, commandId, uncertain: true, error: 'Connection failed; inspect the page before retrying.' }); });
     });
   };

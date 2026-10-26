@@ -19,8 +19,7 @@ final class ScriptCoordinator {
     private final Map<WebView,List<Registration>> registrations=new HashMap<>();
     private final List<Session> sessions=new ArrayList<>();
     private final Map<String,WebView> openedTabs=new HashMap<>();
-    private final Map<WebView,JSONObject> manual=new HashMap<>();
-    private final Set<WebView> manualLoaded=new HashSet<>();
+    private final ManualScriptRuns<WebView,JSONObject> manual=new ManualScriptRuns<>();
     static final String[] API_NAMES={"GM","GM_addStyle","GM_addElement","GM_getValue","GM_setValue","GM_deleteValue","GM_listValues","GM_getValues","GM_setValues","GM_deleteValues","GM_addValueChangeListener","GM_removeValueChangeListener","GM_xmlhttpRequest","GM_getResourceText","GM_getResourceURL","GM_download","GM_setClipboard","GM_registerMenuCommand","GM_unregisterMenuCommand","GM_notification","GM_info","GM_log","GM_openInTab","console"};
     static final class Registration { JavaScriptExecutionWorld world;ScriptHandler script;boolean manual; }
     static final class Session {
@@ -130,23 +129,23 @@ final class ScriptCoordinator {
     void remove(WebView view,boolean closing){
         List<Registration> old=registrations.remove(view);if(old!=null)for(Registration r:old){if(r.script!=null)r.script.remove();WebViewCompat.removeWebMessageListener(view,r.world,"VoodooGM");}
         for(Session s:new ArrayList<>(sessions))if(s.view==view){send(s,new JSONObject(), "stop");for(String request:s.requests)network.cancel(request);sessions.remove(s);}
-        if(closing){manual.remove(view);manualLoaded.remove(view);openedTabs.values().removeIf(v->v==view);}
+        if(closing){manual.remove(view);openedTabs.values().removeIf(v->v==view);}
     }
     void navigating(WebView view){
-        if(manualLoaded.remove(view)){manual.remove(view);install(view);}
+        if(manual.navigating(view))install(view);
         for(Session s:new ArrayList<>(sessions))if(s.view==view){for(String request:s.requests)network.cancel(request);sessions.remove(s);}
     }
-    void finished(WebView view){if(manual.containsKey(view)){manualLoaded.add(view);List<Registration> list=registrations.get(view);if(list!=null)for(Registration r:list)if(r.manual&&r.script!=null){r.script.remove();r.script=null;}}}
+    void finished(WebView view){if(manual.finished(view)){List<Registration> list=registrations.get(view);if(list!=null)for(Registration r:list)if(r.manual&&r.script!=null){r.script.remove();r.script=null;}}}
     void runOnce(WebView view,JSONObject script,Runnable ok,java.util.function.Consumer<String> fail){
         try{if(!isolated())throw new Exception("Update Android System WebView for isolated script execution.");ScriptRules rules=new ScriptRules(script.getString("code"));if(!rules.problems().isEmpty())throw new Exception(String.join("; ",rules.problems()));JSONObject temporary=new JSONObject(script.toString()).put("enabled",true);
-            new AlertDialog.Builder(a).setTitle("Run once after reloading?").setMessage("This reloads the target page and runs the reviewed script once. Unsaved website edits may be lost. Network and other declared permissions will be available.").setNegativeButton("Cancel",(d,w)->fail.accept("Cancelled.")).setPositiveButton("Run once",(d,w)->workers.execute(()->{try{prepare(temporary);a.runOnUiThread(()->validateBatch(Collections.singletonList(temporary),0,()->{manual.put(view,temporary);install(view);view.reload();ok.run();},fail));}catch(Exception e){a.runOnUiThread(()->fail.accept(e.getMessage()));}})).show();
+            new AlertDialog.Builder(a).setTitle("Run once after reloading?").setMessage("This reloads the target page and runs the reviewed script once. Unsaved website edits may be lost. Network and other declared permissions will be available.").setNegativeButton("Cancel",(d,w)->fail.accept("Cancelled.")).setPositiveButton("Run once",(d,w)->workers.execute(()->{try{prepare(temporary);a.runOnUiThread(()->validateBatch(Collections.singletonList(temporary),0,()->{if(!a.alive||!a.tabs.contains(view)){fail.accept("Target tab was closed.");return;}manual.schedule(view,temporary);install(view);view.reload();ok.run();},fail));}catch(Exception e){a.runOnUiThread(()->fail.accept(e.getMessage()));}})).show();
         }catch(Exception e){fail.accept(e.getMessage());}
     }
     Session session(WebView v,String id,String hash,String url,JavaScriptReplyProxy proxy){
         for(Session s:sessions)if(s.proxy==proxy&&s.scriptId.equals(id))return s;
         Session s=new Session(v,id,hash,url,proxy);sessions.add(s);return s;
     }
-    boolean siteBlocked(String id,String host){JSONArray sites=a.array(data.getString("blocked."+id,"[]"));for(int i=0;i<sites.length();i++)if(host.equals(sites.optString(i)))return true;return false;}
+    boolean siteBlocked(String id,String host){JSONArray sites=a.array(data.getString("blocked."+id,"[]"));for(int i=0;i<sites.length();i++)if(ScriptRules.canonicalHost(host).equals(ScriptRules.canonicalHost(sites.optString(i))))return true;return false;}
     void receive(WebView view,String scriptId,String sourceHash,String raw,Uri origin,boolean main,JavaScriptReplyProxy proxy){
         String requestId="";try{
             if(raw==null||raw.length()>1200000)throw new Exception("Invalid script request.");JSONObject req=new JSONObject(raw);requestId=req.optString("id");String url=req.getString("url"),op=req.getString("op");
@@ -182,12 +181,12 @@ final class ScriptCoordinator {
                 }
                 case "menu":if(s.menus.size()>=30)throw new Exception("Menu limit reached.");s.menus.put(req.getString("command"),req.getString("name"));break;
                 case "unmenu":s.menus.remove(req.getString("command"));break;
-                case "setClipboard":{String text=req.getString("text"),replyId=requestId;new AlertDialog.Builder(a).setTitle("Script clipboard request").setMessage(rules.first("name","Script")+" wants to copy "+text.length()+" characters.").setNegativeButton("Cancel",(d,w)->a.reply(proxy,replyId,null,"Clipboard request declined.")).setPositiveButton("Copy",(d,w)->{((ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Userscript",text));a.reply(proxy,replyId,true,null);}).show();return;}
+                case "setClipboard":{String text=req.getString("text"),replyId=requestId;new AlertDialog.Builder(a).setTitle("Script clipboard request").setMessage(rules.first("name","Script")+" wants to copy "+text.length()+" characters.").setNegativeButton("Cancel",(d,w)->a.reply(proxy,replyId,null,"Clipboard request declined.")).setPositiveButton("Copy",(d,w)->{if(!sessions.contains(s))return;((ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Userscript",text));a.reply(proxy,replyId,true,null);}).show();return;}
                 case "notification":new AlertDialog.Builder(a).setTitle("Script: "+req.optString("title")).setMessage(req.optString("text")).setPositiveButton("Dismiss",null).show();break;
-                case "download":{JSONObject d=req.getJSONObject("details");String target=d.getString("url");if(!rules.connects(target,url))throw new Exception("Download blocked by @connect.");String name=d.optString("name","download").replaceAll("[/\\\\]","_");String replyId=requestId;new AlertDialog.Builder(a).setTitle("Script download (4 MB maximum)").setMessage(name+"\n"+target).setNegativeButton("Cancel",(dialog,w)->a.reply(proxy,replyId,null,"Download declined.")).setPositiveButton("Download",(dialog,w)->download(s,replyId,name,target,rules,url)).show();return;}
-                case "openInTab":{String target=req.getString("target"),replyId=requestId;if(!a.webUrl(target)||a.local(target))throw new Exception("Only ordinary websites can be opened.");new AlertDialog.Builder(a).setTitle("Script wants to open a tab").setMessage(target).setNegativeButton("Cancel",(d,w)->a.reply(proxy,replyId,null,"Tab declined.")).setPositiveButton("Open",(d,w)->{WebView tab=a.newTab(a.normalize(target),req.optBoolean("active",true));if(tab==null){a.reply(proxy,replyId,null,"Tab limit reached.");return;}String tabId=s.token+":"+UUID.randomUUID();openedTabs.put(tabId,tab);a.reply(proxy,replyId,tabId,null);}).show();return;}
+                case "download":{JSONObject d=req.getJSONObject("details");String target=d.getString("url");if(!rules.connects(target,url))throw new Exception("Download blocked by @connect.");String name=d.optString("name","download").replaceAll("[/\\\\]","_");String replyId=requestId;new AlertDialog.Builder(a).setTitle("Script download (4 MB maximum)").setMessage(name+"\n"+target).setNegativeButton("Cancel",(dialog,w)->a.reply(proxy,replyId,null,"Download declined.")).setPositiveButton("Download",(dialog,w)->{if(sessions.contains(s))download(s,replyId,name,target,rules,url);}).show();return;}
+                case "openInTab":{String target=req.getString("target"),replyId=requestId;if(!a.webUrl(target)||a.local(target))throw new Exception("Only ordinary websites can be opened.");new AlertDialog.Builder(a).setTitle("Script wants to open a tab").setMessage(target).setNegativeButton("Cancel",(d,w)->a.reply(proxy,replyId,null,"Tab declined.")).setPositiveButton("Open",(d,w)->{if(!sessions.contains(s))return;WebView tab=a.newTab(a.normalize(target),req.optBoolean("active",true));if(tab==null){a.reply(proxy,replyId,null,"Tab limit reached.");return;}String tabId=s.token+":"+UUID.randomUUID();openedTabs.put(tabId,tab);a.reply(proxy,replyId,tabId,null);}).show();return;}
                 case "closeTab":{String tabId=req.getString("tabId");if(!tabId.startsWith(s.token+":"))throw new Exception("This script instance does not own that tab.");WebView tab=openedTabs.remove(tabId);if(tab!=null)a.closeTab(tab);break;}
-                case "bye":sessions.remove(s);break;
+                case "bye":for(String request:s.requests)network.cancel(request);s.requests.clear();sessions.remove(s);break;
                 default:throw new Exception("Unsupported script operation: "+op);
             }
             a.reply(proxy,requestId,result,null);
@@ -207,7 +206,7 @@ final class ScriptCoordinator {
         }catch(Exception e){if(file!=null)a.getContentResolver().delete(file,null,null);a.runOnUiThread(()->a.reply(session.proxy,replyId,null,e.getMessage()));}finally{a.runOnUiThread(()->session.requests.remove(token));}});
     }
     void menu(WebView view){List<Session> owners=new ArrayList<>();List<String> ids=new ArrayList<>(),labels=new ArrayList<>();for(Session s:sessions)if(s.view==view)for(Map.Entry<String,String> m:s.menus.entrySet()){owners.add(s);ids.add(m.getKey());labels.add(m.getValue());}if(labels.isEmpty()){a.toast("No userscript menu commands on this page.");return;}new AlertDialog.Builder(a).setTitle("Userscript commands").setItems(labels.toArray(new String[0]),(d,i)->{try{send(owners.get(i),new JSONObject().put("command",ids.get(i)),"menu");}catch(Exception ignored){}}).show();}
-    void blockSite(String id,String host,boolean blocked)throws Exception{find(id);if(host==null||!host.matches("[A-Za-z0-9.-]+"))throw new Exception("Invalid host.");JSONArray before=a.array(data.getString("blocked."+id,"[]")),after=new JSONArray();for(int i=0;i<before.length();i++)if(!host.equals(before.optString(i)))after.put(before.get(i));if(blocked)after.put(host);if(!data.edit().putString("blocked."+id,after.toString()).commit())throw new Exception("Could not save site policy.");for(WebView view:a.tabs)install(view);}
+    void blockSite(String id,String host,boolean blocked)throws Exception{find(id);if(host==null||!host.matches("[A-Za-z0-9.-]+"))throw new Exception("Invalid host.");host=ScriptRules.canonicalHost(host);JSONArray before=a.array(data.getString("blocked."+id,"[]")),after=new JSONArray();for(int i=0;i<before.length();i++)if(!host.equals(ScriptRules.canonicalHost(before.optString(i))))after.put(ScriptRules.canonicalHost(before.optString(i)));if(blocked)after.put(host);if(!data.edit().putString("blocked."+id,after.toString()).commit())throw new Exception("Could not save site policy.");for(WebView view:a.tabs)install(view);}
     JSONObject backup()throws Exception{JSONObject all=new JSONObject();for(int i=0;i<a.userScripts().length();i++){String id=a.userScripts().getJSONObject(i).getString("id");all.put(id,new JSONObject().put("values",values(id)).put("history",a.array(data.getString("history."+id,"[]"))).put("blocked",a.array(data.getString("blocked."+id,"[]"))));}return all;}
     void rollback(String id,int index,Runnable ok,java.util.function.Consumer<String> fail){
         try{JSONArray versions=a.array(data.getString("history."+id,"[]"));JSONObject old=new JSONObject(versions.getJSONObject(index).toString()).put("enabled",false);

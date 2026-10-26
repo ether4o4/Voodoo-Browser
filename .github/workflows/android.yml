@@ -23,9 +23,10 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci && npm run build:web && npm test
-      - run: npm ci --prefix bridge-server && npm test --prefix bridge-server
+      - run: npm ci && npm run build:web && node --test --test-concurrency=1 tests/*.test.cjs
+      - run: npm ci --prefix bridge-server && node --test --test-concurrency=1 bridge-server/test/*.mjs
       - run: sudo apt-get update && sudo apt-get install -y binutils-aarch64-linux-gnu
+      - run: python3 -m unittest discover -s tests -p "*_test.py"
       - run: python3 tools/fetch-llama-runtime.py
       - run: chmod +x gradlew && ./gradlew testDebugUnitTest assembleDebug assembleRelease lintRelease --no-daemon
       - uses: actions/upload-artifact@v4

@@ -24,6 +24,7 @@ final class BridgeRuntime {
     private WebView activeView;
     private Runnable timeout;
     private long waitDeadline;
+    private NavigationEvidence navigation;
     private static final class Page {
         final String id="tab-"+UUID.randomUUID();long version=1;String documentId="";String origin="";
         JavaScriptReplyProxy proxy;JavaScriptExecutionWorld world;ScriptHandler script;
@@ -80,6 +81,12 @@ final class BridgeRuntime {
                 if(active==null||activeView!=v||reply!=p.proxy||!data.optString("id").equals(active.optString("id"))||!data.optString("documentId").equals(p.documentId)||!origins().contains(origin))return;
                 if(!data.optBoolean("ok")){finish(false,null,data.optString("error","Page action failed."),false);return;}
                 JSONObject result=data.getJSONObject("data");
+                if(navigation!=null){
+                    if(navigation.complete(p.documentId,p.version,result.optString("url"),result.optBoolean("ready"))){allowed(v);finish(true,info(v).put("loaded",true),null,false);}
+                    else if(!navigation.url.equals(result.optString("url")))finish(false,null,"Navigation changed before readiness was confirmed.",true);
+                    else retryNavigation();
+                    return;
+                }
                 if(active.optString("op").equals("wait_for")&&!result.optBoolean("matched")){
                     if(System.currentTimeMillis()<waitDeadline){String id=active.getString("id");main.postDelayed(()->{if(active!=null&&id.equals(active.optString("id")))dispatchPage();},150);return;}
                     finish(false,result,"Wait condition was not observed before the timeout.",false);return;
@@ -90,9 +97,29 @@ final class BridgeRuntime {
         });
         p.script=WebViewCompat.addJavaScriptOnEvent(view,activity.asset("browser-bridge/controller.js"),WebViewCompat.INJECTION_EVENT_DOCUMENT_START,Collections.singleton("*"),p.world);
     }
-    void onNavigation(WebView v){Page p=page(v);p.version++;p.proxy=null;p.documentId="";if(activeView==v&&active!=null&&!Arrays.asList("navigate","reload","open_tab").contains(active.optString("op")))finish(false,null,"Page navigated during the action; inspect its result.",true);}
-    void pageFinished(WebView v){if(activeView!=v||active==null||!Arrays.asList("navigate","reload","open_tab").contains(active.optString("op")))return;try{allowed(v);finish(true,info(v).put("loaded",true),null,false);}catch(Exception e){finish(false,null,e.getMessage(),true);}}
-    void pageFailed(WebView v){if(activeView==v&&active!=null)finish(false,null,"Page loading failed.",true);}
+    void onNavigation(WebView v,String url){
+        Page p=page(v);p.version++;p.proxy=null;p.documentId="";
+        if(activeView==v&&active!=null){
+            if(navigation==null||!navigation.start(url,p.version))finish(false,null,"Page navigation interrupted the action; inspect its result.",true);
+        }
+    }
+    void pageFinished(WebView v,String url){
+        if(activeView!=v||active==null||navigation==null)return;
+        Page p=page(v);if(navigation.finish(url,activity.tabUrl(v),p.version))checkNavigation();
+    }
+    private void retryNavigation(){
+        if(active==null||navigation==null)return;String id=active.optString("id");
+        main.postDelayed(()->{if(active!=null&&id.equals(active.optString("id"))&&navigation!=null)checkNavigation();},150);
+    }
+    private void checkNavigation(){
+        if(active==null||navigation==null||activeView==null)return;
+        try{allowed(activeView);Page p=page(activeView);
+            if(navigation.currentDocument(p.documentId,p.version)&&p.proxy!=null){
+                p.proxy.postMessage(new JSONObject(active.toString()).put("op","load_state").put("documentId",p.documentId).toString());
+            }else retryNavigation();
+        }catch(Exception e){finish(false,null,e.getMessage(),true);}
+    }
+    void pageFailed(WebView v,String url){if(activeView==v&&active!=null&&(navigation==null||navigation.url.equals(url)))finish(false,null,"Page loading failed.",true);}
     void closed(WebView v){if(active!=null&&activeView==v)finish(false,null,"Tab closed during execution; inspect the result.",true);Page p=pages.remove(v);if(p!=null&&p.world!=null){if(p.script!=null)p.script.remove();WebViewCompat.removeWebMessageListener(v,p.world,"VoodooBrowserHost");}}
     void command(BridgeClient source,JSONObject c){main.post(()->{
         if(client!=source||!source.connected())return;
@@ -117,7 +144,7 @@ final class BridgeRuntime {
     }
     private void finishQueued(JSONObject c,String reason){try{record(c,"cancelled",null);send(new JSONObject().put("type","result").put("id",c.getString("id")).put("ok",false).put("error",reason));}catch(Exception ignored){}}
     private void finish(boolean ok,JSONObject data,String error,boolean uncertain){
-        if(active==null)return;JSONObject c=active;active=null;activeView=null;if(timeout!=null)main.removeCallbacks(timeout);timeout=null;
+        if(active==null)return;JSONObject c=active;active=null;activeView=null;navigation=null;if(timeout!=null)main.removeCallbacks(timeout);timeout=null;
         try{record(c,uncertain?"uncertain":ok?"completed":"failed",null);}catch(Exception e){ok=false;uncertain=true;error="Could not persist the outcome. Inspect the page before retrying.";prefs.edit().putBoolean("paused",true).commit();}
         try{JSONObject result=new JSONObject().put("type","result").put("id",c.getString("id")).put("ok",ok).put("uncertain",uncertain);if(data!=null)result.put("data",data);if(error!=null)result.put("error",error);send(result);}catch(Exception ignored){}
         main.post(this::drain);
@@ -138,15 +165,16 @@ final class BridgeRuntime {
         if(op.equals("list_tabs")){JSONArray all=new JSONArray();for(WebView v:a.tabs)try{allowed(v);all.put(info(v));}catch(Exception ignored){}finish(true,new JSONObject().put("tabs",all).put("onlyAllowedSites",true),null,false);return;}
         if(op.equals("open_tab")){
             String url=active.getString("url");if(!origins().contains(BridgePolicy.origin(url)))throw new Exception("Destination website is not allowed.");
-            if(a.tabs.size()>=8)throw new Exception("Close a tab first; the eight-tab limit has been reached.");activeView=a.newTab(url);if(activeView==null)throw new Exception("Could not open tab.");return;
+            if(a.tabs.size()>=8)throw new Exception("Close a tab first; the eight-tab limit has been reached.");activeView=a.newTab(url,false);if(activeView==null)throw new Exception("Could not open tab.");navigation=new NavigationEvidence(url,page(activeView).version,page(activeView).documentId);a.showTab(activeView);return;
         }
         activeView=tab(active.getString("tabId"));WebView v=activeView;Page p=page(v);
         if(active.has("documentVersion")&&active.getLong("documentVersion")!=p.version)throw new Exception("Document changed; read the page again.");
         if(op.equals("close_tab")){String id=p.id;activeView=null;a.closeTab(v);finish(true,new JSONObject().put("closed",id),null,false);return;}
-        a.showTab(v);
+        if(navigation==null&&a.deferredTabs.containsKey(v)&&Arrays.asList("navigate","reload").contains(op))a.deferredTabs.remove(v);
+        if(!Arrays.asList("navigate","reload").contains(op))a.showTab(v);
         if(op.equals("select_tab")){finish(true,info(v),null,false);return;}
-        if(op.equals("navigate")){String url=active.getString("url");if(!origins().contains(BridgePolicy.origin(url)))throw new Exception("Destination website is not allowed.");v.loadUrl(url);return;}
-        if(op.equals("reload")){v.reload();return;}
+        if(op.equals("navigate")){String url=active.getString("url");if(!origins().contains(BridgePolicy.origin(url)))throw new Exception("Destination website is not allowed.");navigation=new NavigationEvidence(url,p.version,p.documentId);a.showTab(v);v.loadUrl(url);return;}
+        if(op.equals("reload")){String url=a.tabUrl(v);navigation=new NavigationEvidence(url,p.version,p.documentId);a.showTab(v);if(v.getUrl()==null)v.loadUrl(url);else v.reload();return;}
         if(op.equals("screenshot")){
             int w=v.getWidth(),h=v.getHeight();if(w<1||h<1)throw new Exception("The tab is not visible.");float scale=Math.min(1f,1280f/Math.max(w,h));Bitmap b=Bitmap.createBitmap(Math.max(1,(int)(w*scale)),Math.max(1,(int)(h*scale)),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(b);canvas.scale(scale,scale);v.draw(canvas);ByteArrayOutputStream out=new ByteArrayOutputStream();b.compress(Bitmap.CompressFormat.PNG,100,out);b.recycle();if(out.size()>3000000)throw new Exception("Screenshot exceeds the size limit.");finish(true,new JSONObject().put("mimeType","image/png").put("base64",android.util.Base64.encodeToString(out.toByteArray(),android.util.Base64.NO_WRAP)),null,false);return;
         }

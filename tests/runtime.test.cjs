@@ -3,7 +3,7 @@ const assets=path.join(__dirname,'../app/src/main/assets');
 const names=JSON.parse('['+fs.readFileSync(path.join(__dirname,'../app/src/main/java/com/ether4o4/voodoo/ScriptCoordinator.java'),'utf8').match(/API_NAMES=\{([^}]+)}/)[1]+']');
 const tick=()=>new Promise(r=>setTimeout(r,30));
 const windows=[];test.afterEach(()=>{for(const w of windows.splice(0))w.close();});
-function fixture({url='https://example.com/',grants=[],match='https://example.com/*',values={}}={}){
+function fixture({url='https://example.com/',grants=[],match='https://example.com/*',values={},runAt='document-start'}={}){
  const dom=new JSDOM('<body></body>',{url,runScripts:'outside-only'}),w=dom.window,calls=[];windows.push(w);let stored={...values};
  w.VoodooGM={postMessage(raw){const q=JSON.parse(raw);calls.push(q);let data=true;
   if(q.op==='ready')data={values:stored,resources:{}};
@@ -15,9 +15,19 @@ function fixture({url='https://example.com/',grants=[],match='https://example.co
   queueMicrotask(()=>w.VoodooGM.onmessage({data:JSON.stringify({id:q.id,ok:true,data})}));
  }};
  w.eval(fs.readFileSync(path.join(assets,'studio/engine.js'),'utf8'));w.eval(fs.readFileSync(path.join(assets,'tools/runtime.js'),'utf8'));
- const code='// ==UserScript==\n// @name Fixture\n// @match '+match+'\n// @run-at document-start\n'+grants.map(g=>'// @grant '+g).join('\n')+'\n// ==/UserScript==\n';
+ const code='// ==UserScript==\n// @name Fixture\n// @match '+match+'\n// @run-at '+runAt+'\n'+grants.map(g=>'// @grant '+g).join('\n')+'\n// ==/UserScript==\n';
  return {dom,w,calls,start(fn){w.VoodooRuntime({code,apiNames:names},(...args)=>fn(Object.fromEntries(names.map((n,i)=>[n,args[i]]))));},get stored(){return stored;}};
 }
+
+test('document-body runs at handshake when body exists even with a loading parser',async()=>{
+ const f=fixture({runAt:'document-body'});Object.defineProperty(f.w.document,'readyState',{value:'loading'});
+ let runs=0;f.start(()=>runs++);await tick();assert.equal(runs,1);f.w.document.dispatchEvent(new f.w.Event('DOMContentLoaded'));assert.equal(runs,1);
+});
+
+test('document-body pending wait cannot execute after pagehide',async()=>{
+ const f=fixture({runAt:'document-body'});f.w.document.body.remove();let runs=0;f.start(()=>runs++);await tick();
+ f.w.dispatchEvent(new f.w.Event('pagehide'));f.w.document.documentElement.append(f.w.document.createElement('body'));await tick();assert.equal(runs,0);assert.ok(f.calls.some(c=>c.op==='bye'));
+});
 test('legacy snapshot storage and Promise storage share native state, never website storage',async()=>{
  const f=fixture({grants:['GM_getValue','GM_setValue','GM_deleteValue','GM_listValues'],values:{persisted:3}});let done;
  f.start(api=>{assert.equal(api.GM_getValue('persisted'),3);api.GM_setValue('x',{ok:true});assert.equal(JSON.stringify(api.GM_getValue('x')),'{"ok":true}');done=api.GM.setValue('y',7).then(()=>api.GM.getValue('y'));});

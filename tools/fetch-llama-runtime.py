@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import urllib.request
 
 TAG = "b11868"
@@ -21,6 +22,35 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ["llama-completion", "libllama-completion-impl.so", "libllama-common.so",
             "libllama.so", "libggml.so", "libggml-base.so"]
 
+def verified_archive(archive, *, supplied=False):
+    def valid(path):
+        with path.open("rb") as source:
+            return hashlib.file_digest(source, "sha256").hexdigest() == DIGEST
+    if archive.exists():
+        if valid(archive):
+            return archive
+        if supplied:
+            raise RuntimeError("Supplied runtime integrity mismatch. No libraries were installed.")
+        # An old interrupted download is disposable cache, never a user-supplied archive.
+        archive.unlink()
+    if supplied:
+        raise FileNotFoundError(archive)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=archive.parent, prefix=archive.name+".", suffix=".part", delete=False) as out:
+            temporary = Path(out.name)
+            with urllib.request.urlopen(URL, timeout=180) as response:
+                shutil.copyfileobj(response, out)
+            out.flush()
+            os.fsync(out.fileno())
+        if not valid(temporary):
+            raise RuntimeError("Upstream runtime integrity mismatch. No libraries were installed.")
+        temporary.replace(archive)
+        return archive
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cache", type=Path, default=ROOT / ".gradle" / "llama-runtime")
@@ -28,13 +58,7 @@ def main():
     args = parser.parse_args()
     args.cache.mkdir(parents=True, exist_ok=True)
     archive = args.archive or args.cache / "llama-android.tar.gz"
-    if not archive.exists():
-        with urllib.request.urlopen(URL, timeout=180) as response, archive.open("wb") as out:
-            shutil.copyfileobj(response, out)
-    with archive.open("rb") as source:
-        digest = hashlib.file_digest(source, "sha256").hexdigest()
-    if digest != DIGEST:
-        raise RuntimeError("Upstream runtime integrity mismatch. No libraries were installed.")
+    verified_archive(archive, supplied=args.archive is not None)
     destination = ROOT / "app/src/main/jniLibs/arm64-v8a"
     destination.mkdir(parents=True, exist_ok=True)
     strip = os.environ.get("VOODOO_STRIP") or shutil.which("aarch64-linux-gnu-strip") or shutil.which("llvm-strip")

@@ -154,8 +154,8 @@ public class MainActivity extends Activity {
             if(!edit.commit())throw new Exception("Backup could not be restored.");scripts.restoreData(backup.optJSONObject("scriptRuntime"));applySettings();reply(reply,id,true,null);break;
         }
         case "put-store":{String k=req.getString("key");allowedStore(k);Object value=req.get("value");if(k.equals("pins"))throw new Exception("Use pin controls to change saved sites.");if(k.equals("options")&&((JSONObject)value).has("workspaceNames"))((JSONObject)value).put("workspaceNames",PinStore.workspaceNames(((JSONObject)value).getJSONObject("workspaceNames")));String raw=value.toString();if(raw.length()>5000000)throw new Exception("This storage area is full. Export a backup first.");if(req.has("expectedRevision")&&object(prefs.getString(k,"{}")).optInt("_revision")!=req.getInt("expectedRevision"))throw new Exception("This workspace changed in another tab. Export your draft, then reload this tab.");if(k.equals("studio")){scripts.save((JSONObject)value,req.has("expectedRevision")?req.getInt("expectedRevision"):null,()->reply(reply,id,true,null),error->reply(reply,id,null,error));break;}if(!prefs.edit().putString(k,raw).commit())throw new Exception("Could not save changes.");if(k.equals("options"))applySettings();reply(reply,id,true,null);break;}
-        case "speech-listen":voice.listen(view,reply,id);return;
-        case "speech-speak":voice.speak(view,reply,id,req.getString("text"));return;
+        case "speech-listen":voice.listen(source,reply,id);return;
+        case "speech-speak":voice.speak(source,reply,id,req.getString("text"));return;
         case "speech-stop":voice.stop();reply(reply,id,true,null);break;
         case "recent-sites":reply(reply,id,recentSites.latest(),null);break;
         case "pins":reply(reply,id,pinState(),null);break;

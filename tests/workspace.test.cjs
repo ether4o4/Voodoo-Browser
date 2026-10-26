@@ -18,3 +18,10 @@ test('explicit conversation resumes listening after speech but stop invalidates 
  const v=W.voice(host,(...x)=>texts.push(x),()=>{});const first=v.listen(true);listeners.shift()('Ask');await first;assert.deepEqual(texts,[['Ask',true]]);
  const reply=v.reply('Answer');v.stop();speakers.shift()(true);await reply;assert.equal(listeners.length,0);
 });
+
+test('late cloud reply from a stopped conversation cannot speak in a new conversation',async()=>{
+ const pending=[],spoken=[],host={call(op,args){if(op==='speech-listen')return new Promise(r=>pending.push(r));if(op==='speech-speak')spoken.push(args.text);return Promise.resolve(true);}};
+ const v=W.voice(host,()=>{},()=>{});const first=v.listen(true);pending.shift()('First');await first;const old=v.token;
+ v.stop();const next=v.listen(true);pending.shift()('Second');await next;
+ await v.reply('Late first answer',old);assert.deepEqual(spoken,[]);assert.equal(v.conversation,true);v.stop();
+});

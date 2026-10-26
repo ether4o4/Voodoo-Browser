@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,17 +25,19 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci && npm run build:web && node --test --test-concurrency=1 tests/*.test.cjs
+      - run: npm ci && npm run build:web && git diff --exit-code -- app/src/main/assets/globe.bundle.js && node --test --test-concurrency=1 tests/*.test.cjs
       - run: npm ci --prefix bridge-server && node --test --test-concurrency=1 bridge-server/test/*.mjs
       - run: sudo apt-get update && sudo apt-get install -y binutils-aarch64-linux-gnu
       - run: python3 -m unittest discover -s tests -p "*_test.py"
       - run: python3 tools/fetch-llama-runtime.py
       - run: chmod +x gradlew && ./gradlew testDebugUnitTest assembleDebug assembleRelease lintRelease --no-daemon
+      - run: python3 tools/verify-apks.py
       - uses: actions/upload-artifact@v4
         with:
           name: Voodoo-development-and-unsigned-release
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+            verification/
             app/build/reports/lint-results-release.html
             app/build/reports/tests/testDebugUnitTest/

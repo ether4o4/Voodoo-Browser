@@ -83,7 +83,7 @@ final class BridgeRuntime {
                 JSONObject result=data.getJSONObject("data");
                 if(navigation!=null){
                     if(navigation.complete(p.documentId,p.version,result.optString("url"),result.optBoolean("ready"))){allowed(v);finish(true,info(v).put("loaded",true),null,false);}
-                    else if(!navigation.url.equals(result.optString("url")))finish(false,null,"Navigation changed before readiness was confirmed.",true);
+                    else if(!navigation.matches(result.optString("url")))finish(false,null,"Navigation changed before readiness was confirmed.",true);
                     else retryNavigation();
                     return;
                 }
@@ -119,7 +119,7 @@ final class BridgeRuntime {
             }else retryNavigation();
         }catch(Exception e){finish(false,null,e.getMessage(),true);}
     }
-    void pageFailed(WebView v,String url){if(activeView==v&&active!=null&&(navigation==null||navigation.url.equals(url)))finish(false,null,"Page loading failed.",true);}
+    void pageFailed(WebView v,String url){if(activeView==v&&active!=null&&(navigation==null||navigation.matches(url)))finish(false,null,"Page loading failed.",true);}
     void closed(WebView v){if(active!=null&&activeView==v)finish(false,null,"Tab closed during execution; inspect the result.",true);Page p=pages.remove(v);if(p!=null&&p.world!=null){if(p.script!=null)p.script.remove();WebViewCompat.removeWebMessageListener(v,p.world,"VoodooBrowserHost");}}
     void command(BridgeClient source,JSONObject c){main.post(()->{
         if(client!=source||!source.connected())return;

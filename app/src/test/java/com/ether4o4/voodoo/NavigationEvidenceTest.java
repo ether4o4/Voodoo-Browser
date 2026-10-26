@@ -3,6 +3,15 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class NavigationEvidenceTest {
+    @Test public void browserCanonicalizationRetainsExactDestination(){
+        NavigationEvidence n=new NavigationEvidence("HTTPS://EXAMPLE.COM:443",1,"old");
+        assertTrue(n.start("https://example.com/",2));
+        assertTrue(n.finish("https://example.com/","https://example.com/",2));
+        assertTrue(n.complete("new",2,"https://example.com/",true));
+        assertFalse(n.complete("new",2,"https://example.com:444/",true));
+        assertFalse(n.complete("new",2,"https://example.com/other",true));
+        assertFalse(n.complete("new",2,"https://example.com/?changed",true));
+    }
     @Test public void oldCallbacksCannotCompleteNewLoad(){
         NavigationEvidence n=new NavigationEvidence("https://example.com/new",4,"old-doc");
         assertFalse(n.finish(n.url,n.url,4));

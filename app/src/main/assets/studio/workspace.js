@@ -19,8 +19,8 @@
       try{const r=await host.call('speech-listen');if(turn!==epoch)return;active=false;const text=typeof r==='string'?r:r.text;if(text?.trim()){onText(text,autoSend);onState(autoSend?'Sending…':'Dictation ready. Review and send.',conversation);}else{conversation=false;onState('No speech heard.',false);}}
       catch(e){if(turn===epoch){active=false;conversation=false;onState(e.message||'Speech unavailable.',false);}}
     };
-    const reply=async(text)=>{if(!conversation)return;const turn=epoch;active=true;onState('Speaking…',true);try{await host.call('speech-speak',{text});if(turn===epoch&&conversation){active=false;await listen(true);}}catch(e){if(turn===epoch){active=false;conversation=false;onState(e.message||'Speech unavailable.',false);}}};
-    return {listen,reply,stop,get active(){return active;},get conversation(){return conversation;}};
+    const reply=async(text,expectedEpoch=epoch)=>{if(!conversation||expectedEpoch!==epoch)return;const turn=epoch;active=true;onState('Speaking…',true);try{await host.call('speech-speak',{text});if(turn===epoch&&conversation){active=false;await listen(true);}}catch(e){if(turn===epoch){active=false;conversation=false;onState(e.message||'Speech unavailable.',false);}}};
+    return {listen,reply,stop,get token(){return epoch;},get active(){return active;},get conversation(){return conversation;}};
   }
   function mount({getState,persist,schedule,show,selectScript,send}){
     const $=id=>document.getElementById(id),state=()=>getState(),fail=e=>{$('skill-status').textContent=e.message||String(e);};normalize(state());
@@ -39,21 +39,33 @@
       $('active-skill').textContent=state().skills.find(s=>s.id===state().activeSkillId)?.name||'No active skill';
     };
     const read=()=>{state().skillDraft={...state().skillDraft,name:$('skill-name').value,instructions:$('skill-instructions').value};schedule();};
-    const save=async()=>{read();const s=skills([state().skillDraft])[0];const next=state().skills.filter(x=>x.id!==s.id);next.push(s);skills(next);const old=state().skills;state().skills=next;try{await persist();render();$('skill-status').textContent='Skill saved.';}catch(e){state().skills=old;throw e;}return s;};
+    let skillWrites=Promise.resolve();
+    const changeSkills=change=>{
+      const operation=skillWrites.catch(()=>{}).then(async()=>{
+        const current=state(),previousSkills=current.skills,previousActive=current.activeSkillId;
+        try{const result=change(current);await persist();render();return result;}
+        catch(e){current.skills=previousSkills;current.activeSkillId=previousActive;render();throw e;}
+      });skillWrites=operation;return operation;
+    };
+    const save=async(activate=false)=>{
+      read();const submitted=skills([copy(state().skillDraft)])[0];
+      const saved=await changeSkills(current=>{const next=current.skills.filter(s=>s.id!==submitted.id);next.push(submitted);current.skills=skills(next);if(activate)current.activeSkillId=submitted.id;return submitted;});
+      $('skill-status').textContent='Skill saved.';return saved;
+    };
     $('script-mode').onclick=()=>modes(false);$('skill-mode').onclick=()=>modes(true);
     $('skill-name').oninput=read;$('skill-instructions').oninput=read;
     $('new-skill').onclick=()=>{state().skillDraft=draft();renderDraft();schedule();};
     $('save-skill').onclick=()=>save().catch(fail);
-    $('use-skill').onclick=async()=>{try{const s=await save();state().activeSkillId=s.id;await persist();render();show('chat');}catch(e){fail(e);}};
-    const clear=async()=>{state().activeSkillId=null;await persist();render();};$('clear-skill').onclick=()=>clear().catch(fail);$('chat-clear-skill').onclick=()=>clear().catch(fail);
-    $('delete-skill').onclick=async()=>{if(!confirm('Delete this saved skill?'))return;const id=state().skillDraft.id;state().skills=state().skills.filter(s=>s.id!==id);if(state().activeSkillId===id)state().activeSkillId=null;state().skillDraft=draft();renderDraft();await persist().catch(fail);render();};
-    $('export-skill').onclick=()=>{read();Host.call('export-file',{filename:'Voodoo-skill.json',mime:'application/json',text:JSON.stringify({format:'voodoo-skill',version:1,skill:skills([state().skillDraft])[0]},null,2)}).catch(fail);};
+    $('use-skill').onclick=async()=>{try{await save(true);show('chat');}catch(e){fail(e);}};
+    const clear=()=>changeSkills(current=>{current.activeSkillId=null;});$('clear-skill').onclick=()=>clear().catch(fail);$('chat-clear-skill').onclick=()=>clear().catch(fail);
+    $('delete-skill').onclick=()=>{if(!confirm('Delete this saved skill?'))return;const id=state().skillDraft.id;state().skillDraft=draft();renderDraft();changeSkills(current=>{current.skills=current.skills.filter(s=>s.id!==id);if(current.activeSkillId===id)current.activeSkillId=null;}).catch(fail);};
+    $('export-skill').onclick=()=>{try{read();const skill=skills([state().skillDraft])[0];Host.call('export-file',{filename:'Voodoo-skill.json',mime:'application/json',text:JSON.stringify({format:'voodoo-skill',version:1,skill},null,2)}).catch(fail);}catch(e){fail(e);}};
     $('import-skill').onclick=()=>$('skill-file').click();$('skill-file').onchange=async()=>{try{const file=$('skill-file').files[0];if(!file)return;if(file.size>100000)throw Error('Choose a skill under 100 KB.');const data=JSON.parse(await file.text());if(data.format!=='voodoo-skill'||data.version!==1)throw Error('Unsupported skill file.');state().skillDraft=skills([{...data.skill,id:uid()}])[0];renderDraft();schedule();$('skill-status').textContent='Imported as a draft. Review before saving.';}catch(e){fail(e);}finally{$('skill-file').value='';}};
     const controls=document.createElement('div');controls.className='voice-controls';controls.innerHTML='<button type="button" id="mic">Mic</button><button type="button" id="voice-conversation" aria-pressed="false">Voice conversation</button><button type="button" id="voice-stop">Stop</button><span id="voice-status" role="status"></span>';$('chat-form').append(controls);
     const speech=voice(Host,(text,autoSend)=>{$('prompt').value=text;if(autoSend)send({preventDefault(){}});},(text,active)=>{$('voice-status').textContent=text;$('voice-conversation').setAttribute('aria-pressed',String(active));});
     $('mic').onclick=()=>{speech.stop();speech.listen(false);};$('voice-conversation').onclick=()=>{if(speech.conversation)speech.stop();else speech.listen(true);};$('voice-stop').onclick=speech.stop;
     addEventListener('pagehide',speech.stop);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')speech.stop();});
-    modes(false);renderDraft();render();return {render,stopVoice:speech.stop,reply:speech.reply,prompt:()=>prompt(state())};
+    modes(false);renderDraft();render();return {render,stopVoice:speech.stop,reply:speech.reply,voiceToken:()=>speech.token,prompt:()=>prompt(state())};
   }
   const api={skills,draft,normalize,prompt,voice,mount};root.VoodooWorkspace=api;if(typeof module==='object')module.exports=api;
 })(globalThis);

@@ -1,6 +1,31 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');const root=path.join(__dirname,'../app/src/main/assets');
 const tick=()=>new Promise(r=>setTimeout(r,30));
+test('failed skill save cannot erase a queued save or newer draft edits',async()=>{
+ let rejectFirst,attempts=0;const firstWrite=new Promise((resolve,reject)=>{rejectFirst=reject;});
+ const f=await fixture({'put-store':async(args,data)=>{
+  if(args.key==='studio'&&++attempts===1)await firstWrite;
+  if(args.expectedRevision!==undefined)assert.equal(args.expectedRevision,data[args.key]?._revision||0);
+  data[args.key]=JSON.parse(JSON.stringify(args.value));return true;
+ }},'#workbench');
+ try{
+  f.$('skill-mode').click();f.$('skill-name').value='First';f.$('skill-instructions').value='First instructions';
+  f.$('skill-instructions').dispatchEvent(new f.w.Event('input'));f.$('save-skill').click();await tick();assert.equal(attempts,1);
+  f.$('new-skill').click();f.$('skill-name').value='Second';f.$('skill-instructions').value='Second submitted instructions';
+  f.$('skill-instructions').dispatchEvent(new f.w.Event('input'));f.$('save-skill').click();
+  f.$('skill-name').value='Second, newer draft';f.$('skill-instructions').value='Keep newer unsaved edit';f.$('skill-instructions').dispatchEvent(new f.w.Event('input'));
+  rejectFirst(Error('Temporary save failure'));await tick();await tick();
+  assert.equal(f.data.studio.skills.length,1);assert.equal(f.data.studio.skills[0].name,'Second');assert.equal(f.data.studio.skills[0].instructions,'Second submitted instructions');
+  assert.equal(f.data.studio.skillDraft.name,'Second, newer draft');assert.equal(f.$('skill-instructions').value,'Keep newer unsaved edit');assert.equal(f.$('saved-skills').textContent,'Second');
+ }finally{f.dom.window.close();}
+});
+test('blank skill export shows validation feedback without exporting',async()=>{
+ const f=await fixture({},'#workbench');try{f.$('skill-mode').click();f.$('export-skill').click();assert.match(f.$('skill-status').textContent,/Invalid skill/);assert.equal(f.calls.some(c=>c.op==='export-file'),false);}finally{f.dom.window.close();}
+});
+test('voice restart controls are disabled while a cloud request is pending and Stop remains available',async()=>{
+ let finish;const f=await fixture({chat:()=>new Promise(r=>finish=r)});
+ try{f.$('prompt').value='Hello';f.$('chat-form').dispatchEvent(new f.w.Event('submit',{cancelable:true}));await tick();assert.equal(f.$('mic').disabled,true);assert.equal(f.$('voice-conversation').disabled,true);assert.equal(f.$('voice-stop').disabled,false);finish({text:'Done'});await tick();await tick();assert.equal(f.$('mic').disabled,false);assert.equal(f.$('voice-conversation').disabled,false);}finally{f.dom.window.close();}
+});
 async function fixture(overrides={},hash=''){
  const data={},calls=[],dom=new JSDOM(fs.readFileSync(path.join(root,'studio/index.html'),'utf8'),{url:'https://appassets.androidplatform.net/assets/studio/index.html'+hash,runScripts:'outside-only'});const w=dom.window;
  w.confirm=()=>true;w.Host={call:async(op,args={})=>{calls.push({op,args});if(overrides[op])return overrides[op](args,data);if(op==='get-store')return data[args.key]||null;if(op==='put-store'){if(args.expectedRevision!==undefined)assert.equal(args.expectedRevision,data[args.key]?._revision||0);data[args.key]=JSON.parse(JSON.stringify(args.value));return true;}if(op==='profiles')return [{id:'venice',name:'Venice AI',kind:'openai',base:'https://api.venice.ai/api/v1',model:'fixture-code-model',hasKey:true}];if(op==='context')return {url:'https://example.com/Create',title:'Fixture',...(args.includePage?{page:{text:'Explicitly shared'}}:{})};if(op==='chat')return {text:'Done.\n```javascript\n// ==UserScript==\n// @name AI draft\n// @match https://example.com/*\n// @grant none\n// ==/UserScript==\nwindow.fromAI=true;\n```',truncated:false};if(op==='run-script')return 'Ran test';return true;}};

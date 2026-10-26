@@ -117,3 +117,6 @@ input,textarea,select{border-radius:10px}
   .studio-main h1{font-size:28px}
   .provider-help{margin-top:0}
 }
+
+.favorites-section{margin-top:22px;text-align:left}.favorites-section strong{overflow-wrap:anywhere}.favorites-section .recent-heading>div{display:flex;gap:6px}
+@media(max-width:680px){.favorites-section .recent-heading{flex-wrap:wrap}}

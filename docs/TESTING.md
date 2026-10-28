@@ -1,6 +1,16 @@
 # Validation
 
-## Checks performed
+## Current 0.3.2 removal checks
+
+Run the complete Node/DOM suite and Android unit tests, build and lint. The writing
+regression boots the current HTML with legacy saved data, edits a draft, switches
+sections and exports a backup while retaining old prompts, presets and attempts.
+Verify Tools and Settings have no dedicated Suno section, and visiting Suno as an
+ordinary website does not inject the old panel or generation loop. On a physical
+device, install a same-key update and check saved writing, provider keys and normal
+browser navigation. These device checks remain required.
+
+## Earlier release checks (historical)
 
 - Android release/debug compilation and APK packaging with JDK 17, Gradle 8.13, AGP 8.13.2, Android SDK 36.
 - Android lint: no errors. Warnings include intentional synchronous preference commits, WebView JavaScript enablement, feature checks performed by callers, and pinned dependency versions.

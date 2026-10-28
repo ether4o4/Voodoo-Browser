@@ -6,8 +6,8 @@ android {
         applicationId 'com.ether4o4.voodoo'
         minSdk 29
         targetSdk 36
-        versionCode 9
-        versionName '0.3.2'
+        versionCode 10
+        versionName '0.3.3'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes {
@@ -24,6 +24,10 @@ tasks.register('verifyLocalRuntime') {
     }
 }
 tasks.named('preBuild').configure { dependsOn('verifyLocalRuntime') }
+tasks.withType(Test).configureEach {
+    // The secret itself is never a task input or log field. A fresh fixture must run.
+    if (System.getenv('VOODOO_INTEROP_CODE')) outputs.upToDateWhen { false }
+}
 dependencies {
     implementation 'androidx.webkit:webkit:1.18.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'

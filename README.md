@@ -12,6 +12,21 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+## 0.3.3 — encrypted desktop link
+
+Tools → Device link pairs with the Windows companion on the same Wi-Fi or phone
+hotspot. Paste a five-minute code from the PC, then use **Sync now**. Share selected
+HTTPS bookmarks, immutable note snapshots and tabs. Received tabs open only when
+you choose them. **Tools → Send tab to PC** queues the current website and opens
+the link screen to send it. Both apps must be open, and the PC's link must be enabled.
+
+The connection pins the PC's certificate and encrypts shared payloads with
+AES-256-GCM, with durable replay counters. Pairing keys use Android Keystore-backed
+storage. Website cookies, API keys, saved passwords and browser profiles are never
+part of the sync schema. Sync cancels when this screen is backgrounded; no service
+or periodic job is installed. Notes are selected snapshots, not automatic archive
+replacement. See [pairing, safety limits and recovery](docs/DESKTOP-LINK.md).
+
 ## 0.3.2 — Suno section removed
 
 The dedicated Suno section, native draft filling, floating panel and automatic

@@ -1,5 +1,24 @@
 # Voodoo Browser
 
+## Latest download — rolling updates
+
+- [Latest Android preview APK](https://github.com/ether4o4/Voodoo-Browser/releases/download/mobile-preview/Voodoo-Browser-mobile-preview.apk)
+- [Release notes and SHA-256 checksums](https://github.com/ether4o4/Voodoo-Browser/releases/tag/mobile-preview)
+- [Desktop companion and Windows downloads](https://github.com/ether4o4/Voodoo-Browser-desktop#latest-download--rolling-updates)
+
+These links stay the same as preview builds are updated. The APK is a development
+build (`com.ether4o4.voodoo.dev`), installed separately from the original release.
+It does not replace or import your original browser profile. A data-preserving
+release update requires the original signing key. Preview builds have not received
+an independent security audit; keep high-value credentials in your existing browser.
+
+The latest preview removes the dedicated Suno section and adds an encrypted,
+on-demand Windows link over the same Wi-Fi or phone hotspot. The source changes
+are in [the preview branch](https://github.com/ether4o4/Voodoo-Browser/tree/codex/remove-suno-and-desktop-sync)
+and [PR #2](https://github.com/ether4o4/Voodoo-Browser/pull/2).
+The older main-branch feature description follows below; its Suno section does
+not describe the latest preview APK.
+
 A personal Android browser with built-in AI chat, an editable userscript workspace, a music workbench, and a completion-triggered Suno loop.
 
 The app is new code built around **Android System WebView**, the Chromium-based web engine supplied by Android. It is not a patched Firefox APK or a new rendering engine. The homepage banner reads **“Voodoo browser”**; a transparent cutout of the supplied embroidered globe sits above it. The interface uses charcoal gray with muted retrowave accents.

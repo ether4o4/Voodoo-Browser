@@ -32,7 +32,7 @@ public final class BridgeActivity extends Activity {
     }
     private Button button(String t, Runnable r){Button b=new Button(this);b.setText(t);b.setAllCaps(false);b.setTextColor(0xFFEEE7EF);b.setOnClickListener(v->r.run());return b;}
     private void sites(){
-        EditText input=new EditText(this);input.setMinLines(4);input.setHint("suno.com\nwww.suno.com");input.setText(runtime.allowedSites());
+        EditText input=new EditText(this);input.setMinLines(4);input.setHint("example.com\nwww.example.com");input.setText(runtime.allowedSites());
         new AlertDialog.Builder(this).setTitle("Allowed websites").setMessage("Enter one HTTPS website host per line. Only these sites can be read or controlled. Changes pause the bridge.").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{try{runtime.saveSites(input.getText().toString());refresh();}catch(Exception e){toast(e.getMessage());}}).show();
     }
     private void pair(){

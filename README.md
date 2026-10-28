@@ -1,5 +1,42 @@
 # Voodoo Browser
 
+## Latest download — rolling updates
+
+- [Latest Android preview APK](https://github.com/ether4o4/Voodoo-Browser/releases/download/mobile-preview/Voodoo-Browser-mobile-preview.apk)
+- [Release notes and SHA-256 checksums](https://github.com/ether4o4/Voodoo-Browser/releases/tag/mobile-preview)
+- [Desktop companion and Windows downloads](https://github.com/ether4o4/Voodoo-Browser-desktop#latest-download--rolling-updates)
+
+These links stay the same as preview builds are updated. The APK is a development
+build (`com.ether4o4.voodoo.dev`), installed separately from the original release.
+It does not replace or import your original browser profile. A data-preserving
+release update requires the original signing key. Preview builds have not received
+an independent security audit; keep high-value credentials in your existing browser.
+
+## 0.3.3 — encrypted desktop link
+
+Tools → Device link pairs with the Windows companion on the same Wi-Fi or phone
+hotspot. Paste a five-minute code from the PC, then use **Sync now**. Share selected
+HTTPS bookmarks, immutable note snapshots and tabs. Received tabs open only when
+you choose them. **Tools → Send tab to PC** queues the current website and opens
+the link screen to send it. Both apps must be open, and the PC's link must be enabled.
+
+The connection pins the PC's certificate and encrypts shared payloads with
+AES-256-GCM, with durable replay counters. Pairing keys use Android Keystore-backed
+storage. Website cookies, API keys, saved passwords and browser profiles are never
+part of the sync schema. Sync cancels when this screen is backgrounded; no service
+or periodic job is installed. Notes are selected snapshots, not automatic archive
+replacement. See [pairing, safety limits and recovery](docs/DESKTOP-LINK.md).
+
+## 0.3.2 — Suno section removed
+
+The dedicated Suno section, native draft filling, floating panel and automatic
+generation loop have been removed. Writing, saved versions, AI chat and scripts
+remain available. Existing stored prompts, presets and attempt notes are preserved
+in writing backups; this update does not erase saved data. Suno remains accessible
+as an ordinary website.
+
+See [removal notes](docs/RELEASE-0.3.2.md).
+
 ## 0.3.1 integrated restoration
 
 This branch restores the black interface, Favorites, editable Saved/pin group names,
@@ -16,7 +53,7 @@ CI builds a signed development package (`com.ether4o4.voodoo.dev`) and an unsign
 release package. Updating the installed release while keeping its data requires
 the owner's original signing key. These artifacts are not a same-key release update.
 
-A personal Android browser with built-in AI chat, an editable userscript workspace, a music workbench, and a completion-triggered Suno loop.
+A personal Android browser with built-in AI chat, an editable userscript workspace, a writing archive and reusable skills.
 
 The app is new code built around **Android System WebView**, the Chromium-based web engine supplied by Android. It is not a patched Firefox APK or a new rendering engine. The homepage banner reads **“Voodoo browser”**; a transparent cutout of the supplied embroidered globe sits above it. The interface uses black surfaces with cyan, pink, green, gold and mint accents.
 
@@ -29,8 +66,7 @@ The app is new code built around **Android System WebView**, the Chromium-based 
 - **AI-assisted scripts:** complete generated userscripts appear in the draft editor. Review, save, enable, or run once on the target website. Drafts and recent draft history save locally.
 - **Userscript workspace:** import/export `.user.js`; per-script switches; `@match`, `@exclude-match`, `@run-at`; local GM value/style helpers. This is a supported subset of Tampermonkey behavior, not the Tampermonkey extension or a full extension platform.
 - **Skills Workbench:** persistent skills, editable drafts, import/export and explicit activation in chat; script and skill editor modes share one workspace. Mic dictates without sending; explicit Voice conversation sends and speaks. Device speech services still need phone acceptance.
-- **Writing archive:** lyric checks, protected lines, presets, saved versions, attempt notes, and JSON backups. Send a selected draft to Suno explicitly.
-- **Non-AI completion loop:** learn Create/loading/completed indicators, confirm completion, wait a random delay, and start another generation. Has Stop and an optional run cap. It never starts itself.
+- **Writing archive:** lyric checks, protected lines, saved versions and JSON backups. Previously saved prompts, presets and attempt notes are retained in backups.
 - **Browser tools:** eight tabs (saved background pages load only when selected), bookmarks, site notes, reader view, clean-link copy, find, text zoom, desktop mode, share, PDF printing, HTTPS downloads, file selection, and a keep-screen-awake switch.
 - **Persistence:** settings, scripts, drafts, provider keys and the browsing profile remain when a newer APK with the same application ID/signing key is installed over the existing app.
 
@@ -50,12 +86,6 @@ The 0.2.3 interface pass makes search easier to reach, uses plain section names,
 The supplied artwork is bundled. **Settings → Homepage image** lets you choose another image or restore the Voodoo cutout. Pin a website using **Tools → Bookmarks & notes → Pin / save bookmark**, **Pin a site** on the homepage, or **＋** in the browser pin bar once it is visible. Long-press a bar pin to move or unpin it. The homepage adds editing, workspace naming, and **Place on globe**. Positions are personal layout choices; the app does not infer your location or route traffic through the selected point. There is no built-in VPN or proxy service.
 
 Recent websites start filling as you browse after installing 0.2.4. Only successful external HTTPS visits are recorded, with one entry per host and 24 sites retained locally. The homepage shows the newest six. Internal Voodoo pages and failed loads are excluded; recent visits are not included in exported tool backups.
-
-## Suno loop
-
-Open Suno and sign in. The 4GA panel contains the loop. Start one generation manually, then teach it the Create button, a loading indicator, and a completed indicator. Start the loop while a generation is loading. It requires loading to clear **and** a new completed result; then it waits within your min/max delay and clicks Create once. Keep the Suno tab visible. Tab changes, app backgrounding, timeouts, and recognized errors stop the loop. Randomness applies to the delay, not the prompt.
-
-The loop uses Suno's normal generation credits. Site markup or login behavior may change; the live signed-in Suno flow has not been tested on a physical phone in this build.
 
 ## Keys, scripts, and updates
 
@@ -90,7 +120,7 @@ The debug variant has application ID `com.ether4o4.voodoo.dev` so CI/debug signi
 
 ## Validation and current limits
 
-See [the current bridge review](docs/BRIDGE-REVIEW.md) for executed checks and remaining acceptance work. The JavaScript suite covers lyric protection, backups, the completion loop, script URL rules, helpers, editor persistence, AI-to-draft behavior, and workspace pin validation and flows. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
+See [the current bridge review](docs/BRIDGE-REVIEW.md) for executed checks and remaining acceptance work. The JavaScript suite covers lyric protection, backups, writing UI startup, script URL rules, helpers, editor persistence, AI-to-draft behavior, and workspace pin validation and flows. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
 
 This is an **initial personal-use alpha**, not a production-audited browser. No physical-device or emulator UI run, real provider-key request, or live Suno generation has been completed in this environment. The phone's USB connection is not exposed to the build environment. Some identity providers disallow embedded-browser sign-in. Website camera/microphone permissions, geolocation, password-manager integration, external-page blob downloads, and full browser-extension compatibility are not implemented. Normal HTTPS downloads and native Workbench/script/backup exports are implemented.
 

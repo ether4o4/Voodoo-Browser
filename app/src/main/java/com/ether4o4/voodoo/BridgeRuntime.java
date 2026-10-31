@@ -120,7 +120,8 @@ final class BridgeRuntime {
         }catch(Exception e){finish(false,null,e.getMessage(),true);}
     }
     void pageFailed(WebView v,String url){if(activeView==v&&active!=null&&(navigation==null||navigation.matches(url)))finish(false,null,"Page loading failed.",true);}
-    void closed(WebView v){if(active!=null&&activeView==v)finish(false,null,"Tab closed during execution; inspect the result.",true);Page p=pages.remove(v);if(p!=null&&p.world!=null){if(p.script!=null)p.script.remove();WebViewCompat.removeWebMessageListener(v,p.world,"VoodooBrowserHost");}}
+    void closed(WebView v){closed(v,false);}
+    void closed(WebView v,boolean rendererGone){if(active!=null&&activeView==v)finish(false,null,"Tab closed during execution; inspect the result.",true);Page p=pages.remove(v);if(p!=null&&p.world!=null&&!rendererGone){try{if(p.script!=null)p.script.remove();}catch(RuntimeException ignored){}try{WebViewCompat.removeWebMessageListener(v,p.world,"VoodooBrowserHost");}catch(RuntimeException ignored){}}}
     void command(BridgeClient source,JSONObject c){main.post(()->{
         if(client!=source||!source.connected())return;
         try{BridgePolicy.validate(c,System.currentTimeMillis());String id=c.getString("id"),op=c.getString("op");

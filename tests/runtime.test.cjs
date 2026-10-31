@@ -28,6 +28,27 @@ test('document-body pending wait cannot execute after pagehide',async()=>{
  const f=fixture({runAt:'document-body'});f.w.document.body.remove();let runs=0;f.start(()=>runs++);await tick();
  f.w.dispatchEvent(new f.w.Event('pagehide'));f.w.document.documentElement.append(f.w.document.createElement('body'));await tick();assert.equal(runs,0);assert.ok(f.calls.some(c=>c.op==='bye'));
 });
+test('revocation immediately stops body waiting and native error reporting',async()=>{
+ const f=fixture({runAt:'document-body',grants:['GM_setValue','GM_registerMenuCommand']});f.w.document.body.remove();let runs=0;
+ f.start(()=>runs++);await tick();f.w.VoodooGM.onmessage({data:JSON.stringify({event:'stop'})});
+ const before=f.calls.length;f.w.document.documentElement.append(f.w.document.createElement('body'));await tick();
+ f.w.dispatchEvent(new f.w.Event('error'));f.w.document.dispatchEvent(new f.w.Event('visibilitychange'));await tick();
+ assert.equal(runs,0);assert.equal(f.calls.length,before);
+});
+test('revoked instances cannot invoke menus or issue more native storage operations',async()=>{
+ const f=fixture({grants:['GM_setValue','GM_registerMenuCommand']});let api,menu,runs=0;
+ f.start(x=>{api=x;menu=x.GM_registerMenuCommand('Manual command',()=>runs++);});await tick();
+ f.w.VoodooGM.onmessage({data:JSON.stringify({event:'stop'})});const before=f.calls.length;
+ f.w.VoodooGM.onmessage({data:JSON.stringify({event:'menu',command:menu})});await assert.rejects(api.GM.setValue('after-stop',1),/Script stopped/);
+ assert.equal(runs,0);assert.equal(f.calls.length,before);
+});
+test('visible route checks resume once and cannot restart after native revocation',async()=>{
+ const f=fixture();let hidden=true;Object.defineProperty(f.w.document,'hidden',{get:()=>hidden});let routes=0,runs=0;
+ f.w.addEventListener('voodoo:urlchange',()=>routes++);f.start(()=>runs++);await tick();
+ f.w.history.pushState({},'','/hidden-route');await tick();assert.equal(routes,0);
+ hidden=false;f.w.document.dispatchEvent(new f.w.Event('visibilitychange'));await tick();assert.equal(routes,1);assert.equal(runs,1);
+ f.w.VoodooGM.onmessage({data:JSON.stringify({event:'stop'})});f.w.history.pushState({},'','/stopped');f.w.document.dispatchEvent(new f.w.Event('visibilitychange'));await tick();assert.equal(routes,1);
+});
 test('legacy snapshot storage and Promise storage share native state, never website storage',async()=>{
  const f=fixture({grants:['GM_getValue','GM_setValue','GM_deleteValue','GM_listValues'],values:{persisted:3}});let done;
  f.start(api=>{assert.equal(api.GM_getValue('persisted'),3);api.GM_setValue('x',{ok:true});assert.equal(JSON.stringify(api.GM_getValue('x')),'{"ok":true}');done=api.GM.setValue('y',7).then(()=>api.GM.getValue('y'));});

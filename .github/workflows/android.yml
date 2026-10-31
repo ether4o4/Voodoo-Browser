@@ -32,6 +32,9 @@ jobs:
       - run: python3 tools/fetch-llama-runtime.py
       - run: chmod +x gradlew && ./gradlew testDebugUnitTest assembleDebug assembleRelease lintRelease --no-daemon
       - run: python3 tools/verify-apks.py
+      - name: Include public signing tool for local release signing
+        run: |
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" verification/
       - uses: actions/upload-artifact@v4
         with:
           name: Voodoo-development-and-unsigned-release
@@ -41,3 +44,4 @@ jobs:
             verification/
             app/build/reports/lint-results-release.html
             app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/

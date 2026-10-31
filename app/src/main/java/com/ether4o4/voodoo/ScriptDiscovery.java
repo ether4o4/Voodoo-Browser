@@ -19,8 +19,8 @@ final class ScriptDiscovery {
     private final MainActivity a;private Button launcher;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final ScriptNetwork net=new ScriptNetwork();
-    private final Map<String,JSONArray> cache=new HashMap<>();
-    private final Map<String,Long> fetched=new HashMap<>();
+    private final Map<String,JSONArray> cache=new ConcurrentHashMap<>();
+    private final Map<String,Long> fetched=new ConcurrentHashMap<>();
     ScriptDiscovery(MainActivity activity){a=activity;}
     void attach(WebView view){
         if(launcher!=null&&launcher.getParent()!=null)((android.view.ViewGroup)launcher.getParent()).removeView(launcher);
@@ -32,20 +32,20 @@ final class ScriptDiscovery {
     TextView text(String value){TextView t=new TextView(a);t.setText(value);t.setTextColor(MainActivity.INK);t.setTextSize(14);t.setPadding(0,a.dp(8),0,a.dp(8));return t;}
     void show(WebView view){
         String url=view.getUrl();if(!a.webUrl(url)||a.local(url)){a.toast("Script discovery is available on ordinary websites.");return;}
-        String host=Uri.parse(url).getHost();LinearLayout box=column();ScrollView scroll=new ScrollView(a);scroll.addView(box);
+        String host=Uri.parse(url).getHost(),catalogHost=DiscoverySite.catalogHost(url);LinearLayout box=column();ScrollView scroll=new ScrollView(a);scroll.addView(box);
         AlertDialog dialog=new AlertDialog.Builder(a).setTitle("Magic scripts · "+host).setView(scroll).setNegativeButton("Close",null).setNeutralButton("Script Hub",(d,w)->a.openLocal(MainActivity.STUDIO+"#scripts")).create();
-        LinearLayout actions=new LinearLayout(a);actions.addView(a.button("Refresh",()->{cache.remove(host);load(view,host,box,actions);}),new LinearLayout.LayoutParams(0,a.dp(48),1));actions.addView(a.button("Commands",()->a.scripts.menu(view)),new LinearLayout.LayoutParams(0,a.dp(48),1));
-        load(view,host,box,actions);dialog.show();
+        LinearLayout actions=new LinearLayout(a);actions.addView(a.button("Refresh",()->load(view,host,catalogHost,box,actions,true)),new LinearLayout.LayoutParams(0,a.dp(48),1));actions.addView(a.button("Commands",()->a.scripts.menu(view)),new LinearLayout.LayoutParams(0,a.dp(48),1));
+        load(view,host,catalogHost,box,actions,false);dialog.show();
     }
-    void load(WebView view,String host,LinearLayout box,LinearLayout actions){
+    void load(WebView view,String host,String catalogHost,LinearLayout box,LinearLayout actions,boolean refresh){
         box.removeAllViews();if(actions.getParent()!=null)((android.view.ViewGroup)actions.getParent()).removeView(actions);box.addView(actions);box.addView(text("Searching Greasy Fork… No script is installed or executed by searching."));
         worker.execute(()->{
             try{
                 JSONArray records;
-                if(cache.containsKey(host)&&System.currentTimeMillis()-fetched.getOrDefault(host,0L)<600000)records=cache.get(host);
-                else {JSONObject response=net.request(UUID.randomUUID().toString(),new JSONObject().put("url","https://api.greasyfork.org/scripts/by-site/"+Uri.encode(host)+".json?language=all"),address->{if(!"api.greasyfork.org".equals(Uri.parse(address).getHost()))throw new Exception("Unexpected discovery redirect.");},4000000);if(response.getInt("status")!=200)throw new Exception("Greasy Fork HTTP "+response.getInt("status"));records=new JSONArray(response.getString("responseText"));cache.put(host,records);fetched.put(host,System.currentTimeMillis());}
-                JSONArray result=records;a.runOnUiThread(()->{if(!a.alive)return;box.removeAllViews();box.addView(actions);if(!host.equals(Uri.parse(a.tabUrl(view)).getHost())){box.addView(text("Website changed. Close and reopen discovery for the current site."));return;}renderInstalled(a.tabUrl(view),box);box.addView(text(result.length()+" results · Source: Greasy Fork · Review source, matching rules and permissions before installation."));
-                    if(result.length()==0)box.addView(text("No scripts found for this host. The website may still support custom scripts."));
+                records=refresh?null:cache.get(catalogHost);
+                if(records==null||System.currentTimeMillis()-fetched.getOrDefault(catalogHost,0L)>=600000){JSONObject response=net.request(UUID.randomUUID().toString(),new JSONObject().put("url",DiscoverySite.catalogUrlForHost(catalogHost)),address->{if(!"api.greasyfork.org".equals(Uri.parse(address).getHost()))throw new Exception("Unexpected discovery redirect.");},4000000);if(response.getInt("status")!=200)throw new Exception("Greasy Fork HTTP "+response.getInt("status"));records=new JSONArray(response.getString("responseText"));cache.put(catalogHost,records);fetched.put(catalogHost,System.currentTimeMillis());}
+                JSONArray result=records;a.runOnUiThread(()->{if(!a.alive)return;box.removeAllViews();box.addView(actions);if(!host.equals(Uri.parse(a.tabUrl(view)).getHost())){box.addView(text("Website changed. Close and reopen discovery for the current site."));return;}renderInstalled(a.tabUrl(view),box);box.addView(text(result.length()+" results for "+catalogHost+" · Source: Greasy Fork · Review source, matching rules and permissions before installation."));
+                    if(result.length()==0)box.addView(text("No scripts found for "+catalogHost+". The website may still support custom scripts."));
                     for(int i=0;i<Math.min(100,result.length());i++){JSONObject record=result.optJSONObject(i);if(record==null)continue;box.addView(text(record.optString("name")+" · "+record.optString("version")+"\n"+record.optString("description")));box.addView(a.button("Preview source & permissions",()->preview(record,host,box)));}
                     box.addView(text("Discovery adapted from Magic Userscript+ by Magic (MIT). This is Voodoo's native engine, not a Tampermonkey extension."));
                 });

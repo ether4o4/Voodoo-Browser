@@ -12,6 +12,16 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+## 0.3.4 — mobile script discovery
+
+Magic scripts now searches the site's registrable domain: `m.youtube.com` and
+`www.youtube.com` search `youtube.com`; mobile Facebook searches `facebook.com`.
+The existing OkHttp public suffix list handles domains such as `bbc.co.uk` and
+keeps separate `github.io` tenants separate. Refresh bypasses the shared domain
+cache, and the panel names the catalog being searched. Installed script URL
+rules and permissions continue to apply to the exact page. See
+[fix and validation details](docs/RELEASE-0.3.4.md).
+
 ## 0.3.3 — encrypted desktop link
 
 Tools → Device link pairs with the Windows companion on the same Wi-Fi or phone

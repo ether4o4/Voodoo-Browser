@@ -3,27 +3,31 @@ function VoodooRuntime(config, entry) {
   'use strict';
   const bridge=globalThis.VoodooGM, E=VoodooEngine, meta=E.metadata(config.code);
   if(location.hostname.replace(/\.$/,'')==='appassets.androidplatform.net'||(meta.noframes&&top!==window))return;
-  const pending=new Map(),listeners=new Map(),menus=new Map();let seq=0,values=Object.create(null),resources={},started=false,lastURL='',live=true;
+  const pending=new Map(),listeners=new Map(),menus=new Map();let seq=0,values=Object.create(null),resources={},started=false,lastURL=location.href,live=true,routeTimer=null,bodyObserver=null;
   const copy=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const has=key=>Object.prototype.hasOwnProperty.call(values,key);
   function call(op,args={}) {
+    if(!live)return Promise.reject(Error('Script stopped. Reload this page.'));
     const id=String(++seq);
     const result=new Promise((resolve,reject)=>{
       const timer=setTimeout(()=>{pending.delete(id);reject(Error('Native script operation timed out: '+op));},70000);
       pending.set(id,{resolve,reject,timer});
-      bridge.postMessage(JSON.stringify({...args,id,op,url:location.href}));
+      try{bridge.postMessage(JSON.stringify({...args,id,op,url:location.href}));}
+      catch(e){clearTimeout(timer);pending.delete(id);reject(e);}
     });result.requestId=id;return result;
   }
-  function log(level,...items){call('log',{level,text:items.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ').slice(0,4000)}).catch(()=>{});}
+  function log(level,...items){if(live)call('log',{level,text:items.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ').slice(0,4000)}).catch(()=>{});}
+  function stop(){live=false;clearTimeout(routeTimer);routeTimer=null;bodyObserver?.disconnect();bodyObserver=null;listeners.clear();menus.clear();for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('Script stopped. Reload this page.'));}pending.clear();}
   function changed(key,oldValue,newValue,remote){for(const [name,callback] of listeners.values())if(name===key)try{callback(key,copy(oldValue),copy(newValue),remote);}catch(e){log('error',e.message);}}
   bridge.onmessage=event=>{
     let r;try{r=JSON.parse(event.data);}catch{return;}
+    if(r.event==='stop'){stop();return;}
+    if(!live)return;
     if(r.event==='value'){
       const old=has(r.key)?values[r.key]:undefined;if(r.deleted)delete values[r.key];else values[r.key]=r.value;
       if(r.remote)changed(r.key,old,r.deleted?undefined:r.value,true);return;
     }
     if(r.event==='menu'){try{menus.get(r.command)?.();}catch(e){log('error',e.message);}return;}
-    if(r.event==='stop'){live=false;for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('Script revoked. Reload this page.'));}pending.clear();return;}
     const p=pending.get(r.id);if(!p)return;pending.delete(r.id);clearTimeout(p.timer);r.ok?p.resolve(r.data):p.reject(Error(r.error||'Script operation failed.'));
   };
   const style=css=>{const el=document.createElement('style');el.textContent=css;(document.head||document.documentElement).append(el);return el;};
@@ -92,14 +96,16 @@ function VoodooRuntime(config, entry) {
       const init=await call('ready');values=Object.assign(Object.create(null),init.values||{});resources=init.resources||{};
       const run=()=>{if(!live||!E.matches(meta,location.href))return;const began=performance.now();try{entry(...apiArgs);call('health',{state:'enabled',duration:performance.now()-began}).catch(()=>{});}catch(e){log('error',e.stack||e.message);call('health',{state:'failed',duration:performance.now()-began}).catch(()=>{});}};
       if(meta.runAt==='document-start')run();
-      else if(meta.runAt==='document-body'){if(document.body)run();else{const timer=setInterval(()=>{if(!live||document.body){clearInterval(timer);if(live)run();}},10);}}
+      else if(meta.runAt==='document-body'){if(document.body)run();else{bodyObserver=new MutationObserver(()=>{if(document.body){bodyObserver.disconnect();bodyObserver=null;if(live)run();}});bodyObserver.observe(document,{childList:true,subtree:true});}}
       else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>meta.runAt==='document-idle'?setTimeout(run,0):run(),{once:true});
       else meta.runAt==='document-idle'?setTimeout(run,0):run();
     }catch(e){log('error',e.message);}
   }
   addEventListener('error',e=>log('error',e.message));addEventListener('unhandledrejection',e=>log('error',String(e.reason?.stack||e.reason)));
   // Isolated history globals do not see page-world monkey-patches: detect URL changes without altering page history.
-  const routeTimer=setInterval(()=>{if(!live){clearInterval(routeTimer);return;}if(location.href!==lastURL){const previous=lastURL;lastURL=location.href;dispatchEvent(new CustomEvent('voodoo:urlchange',{detail:{url:lastURL,previous}}));if(!started)start();}},500);
-  addEventListener('pagehide',()=>{live=false;clearInterval(routeTimer);call('bye').catch(()=>{});},{once:true});
+  function watchRoute(){clearTimeout(routeTimer);routeTimer=null;if(!live||document.hidden)return;if(location.href!==lastURL){const previous=lastURL;lastURL=location.href;dispatchEvent(new CustomEvent('voodoo:urlchange',{detail:{url:lastURL,previous}}));if(!started)start();}routeTimer=setTimeout(watchRoute,500);}
+  document.addEventListener('visibilitychange',watchRoute);
+  addEventListener('pagehide',()=>{if(live)call('bye').catch(()=>{});stop();},{once:true});
+  watchRoute();
   start();
 }

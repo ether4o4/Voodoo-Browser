@@ -14,12 +14,15 @@ import java.util.concurrent.*;
 final class ScriptCoordinator {
     private final MainActivity a;
     private final SharedPreferences data;
+    private final String runtime;
     private final ScriptNetwork network=new ScriptNetwork();
     private final ExecutorService workers=Executors.newFixedThreadPool(3);
     private final Map<WebView,List<Registration>> registrations=new HashMap<>();
     private final List<Session> sessions=new ArrayList<>();
     private final Map<String,WebView> openedTabs=new HashMap<>();
     private final ManualScriptRuns<WebView,JSONObject> manual=new ManualScriptRuns<>();
+    private final Set<WebView> manualStarting=new HashSet<>();
+    private final Map<WebView,Runnable> validators=new HashMap<>();
     static final String[] API_NAMES={"GM","GM_addStyle","GM_addElement","GM_getValue","GM_setValue","GM_deleteValue","GM_listValues","GM_getValues","GM_setValues","GM_deleteValues","GM_addValueChangeListener","GM_removeValueChangeListener","GM_xmlhttpRequest","GM_getResourceText","GM_getResourceURL","GM_download","GM_setClipboard","GM_registerMenuCommand","GM_unregisterMenuCommand","GM_notification","GM_info","GM_log","GM_openInTab","console"};
     static final class Registration { JavaScriptExecutionWorld world;ScriptHandler script;boolean manual; }
     static final class Session {
@@ -29,7 +32,7 @@ final class ScriptCoordinator {
         final Set<String> requests=new HashSet<>();
         Session(WebView view,String id,String hash,String url,JavaScriptReplyProxy proxy){this.view=view;scriptId=id;this.hash=hash;this.url=url;this.proxy=proxy;}
     }
-    ScriptCoordinator(MainActivity activity){a=activity;data=a.getSharedPreferences("script_runtime_v1",Context.MODE_PRIVATE);}
+    ScriptCoordinator(MainActivity activity){a=activity;data=a.getSharedPreferences("script_runtime_v1",Context.MODE_PRIVATE);runtime=a.asset("tools/runtime.js");}
     boolean isolated(){return WebViewFeature.isFeatureSupported(WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD);}
     JSONObject find(String id)throws Exception{JSONArray all=a.userScripts();for(int i=0;i<all.length();i++){JSONObject s=all.getJSONObject(i);if(id.equals(s.optString("id")))return s;}throw new Exception("Script is no longer installed.");}
     static String hash(JSONObject script)throws Exception{return ScriptNetwork.digest(script.getString("code"));}
@@ -41,8 +44,8 @@ final class ScriptCoordinator {
     }
     JSONObject status()throws Exception{
         JSONObject result=new JSONObject().put("isolatedWorlds",isolated()).put("logs",a.array(data.getString("logs","[]"))),states=new JSONObject();
-        for(int i=0;i<a.userScripts().length();i++){JSONObject s=a.userScripts().getJSONObject(i);String id=s.optString("id");JSONObject info=a.object(data.getString("state."+id,"{}"));if(!s.optBoolean("enabled"))info.put("state","disabled");info.put("versions",a.array(data.getString("history."+id,"[]"))).put("blockedSites",a.array(data.getString("blocked."+id,"[]"))).put("health",a.object(data.getString("health."+id,"{}"))).put("update",a.object(a.prefs.getString("scriptUpdate."+id,"{}")));states.put(id,info);}
-        return result.put("scripts",states);
+        JSONArray all=a.userScripts();for(int i=0;i<all.length();i++){JSONObject s=all.getJSONObject(i);String id=s.optString("id");JSONObject info=a.object(data.getString("state."+id,"{}"));if(!s.optBoolean("enabled"))info.put("state",ScriptChanges.mode(s));info.put("versions",a.array(data.getString("history."+id,"[]"))).put("blockedSites",a.array(data.getString("blocked."+id,"[]"))).put("health",a.object(data.getString("health."+id,"{}"))).put("update",a.object(a.prefs.getString("scriptUpdate."+id,"{}")));states.put(id,info);}
+        return result.put("scripts",states).put("lastPageFailure",a.object(a.prefs.getString("lastPageFailure","{}")));
     }
     void validateStore(JSONObject studio)throws Exception{
         if(studio.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>5*1024*1024)throw new Exception("Studio storage exceeds 5 MB. Export a backup and remove unused content.");
@@ -52,6 +55,7 @@ final class ScriptCoordinator {
     /** Called only through the internal asset-origin bridge; never by a website. */
     void save(JSONObject studio,Integer expected,Runnable success,java.util.function.Consumer<String> error){
         try{
+            if(!a.alive)throw new Exception("The browser has closed.");
             validateStore(studio);JSONObject previous=a.object(a.prefs.getString("studio","{}"));
             if(expected!=null&&previous.optInt("_revision")!=expected)throw new Exception("Workspace changed in another tab. Reload before saving.");
             JSONArray scripts=studio.getJSONArray("scripts");List<JSONObject> approvals=new ArrayList<>();
@@ -67,7 +71,7 @@ final class ScriptCoordinator {
                         for(JSONObject s:approvals)edit.putString("approval."+s.getString("id"),hash(s));
                         if(!edit.commit())throw new Exception("Could not save script permissions.");
                         if(!a.prefs.edit().putString("studio",studio.toString()).commit())throw new Exception("Could not save scripts.");
-                        if(!String.valueOf(previous.optJSONArray("scripts")).equals(scripts.toString()))for(WebView v:a.tabs)install(v);success.run();
+                        refresh(previous.optJSONArray("scripts"),scripts);success.run();
                     }catch(Exception e){error.accept(e.getMessage());}},error));
                 }catch(Exception e){a.runOnUiThread(()->error.accept("Script preparation failed: "+e.getMessage()));}
             });
@@ -79,17 +83,32 @@ final class ScriptCoordinator {
     }
     /** Compile only: offscreen blank WebView has no bridges, network, storage or userscript execution. */
     void validateBatch(List<JSONObject> scripts,int index,Runnable ok,java.util.function.Consumer<String> fail){
+        if(!a.alive)return;
         if(index>=scripts.size()){ok.run();return;}
         try{
             String source=bundle(scripts.get(index));WebView validator=new WebView(a);validator.getSettings().setJavaScriptEnabled(true);validator.getSettings().setBlockNetworkLoads(true);validator.getSettings().setAllowFileAccess(false);validator.getSettings().setAllowContentAccess(false);
             boolean[] done={false};android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
-            Runnable timeout=()->{if(done[0])return;done[0]=true;validator.destroy();fail.accept("Syntax validation timed out; nothing was enabled.");};handler.postDelayed(timeout,10000);
-            validator.setWebViewClient(new android.webkit.WebViewClient(){@Override public void onPageFinished(WebView v,String url){
-                if(done[0])return;v.evaluateJavascript("(function(){try{new Function("+JSONObject.quote(source)+");return 'ok';}catch(e){return e.name+': '+e.message;}})()",value->{if(done[0])return;done[0]=true;handler.removeCallbacks(timeout);validator.destroy();String result=a.decode(value);if(!"ok".equals(result)){fail.accept("Script syntax validation: "+result);return;}validateBatch(scripts,index+1,ok,fail);});
-            }});validator.loadDataWithBaseURL("https://validation.invalid/","<!doctype html><title>Syntax validation</title>","text/html","UTF-8",null);
+            Runnable[] timeout={null};
+            java.util.function.Consumer<String> complete=error->{
+                if(done[0])return;done[0]=true;handler.removeCallbacks(timeout[0]);validators.remove(validator);validator.destroy();
+                if(!a.alive)return;if(error!=null)fail.accept(error);else validateBatch(scripts,index+1,ok,fail);
+            };
+            timeout[0]=()->complete.accept("Syntax validation timed out; nothing was enabled.");
+            validators.put(validator,()->complete.accept("Syntax validation cancelled."));handler.postDelayed(timeout[0],10000);
+            validator.setWebViewClient(new android.webkit.WebViewClient(){
+                @Override public void onPageFinished(WebView v,String url){
+                    if(done[0]||!a.alive)return;
+                    try{v.evaluateJavascript("(function(){try{new Function("+JSONObject.quote(source)+");return 'ok';}catch(e){return e.name+': '+e.message;}})()",value->{String result=a.decode(value);complete.accept("ok".equals(result)?null:"Script syntax validation: "+result);});}
+                    catch(Exception e){complete.accept("Syntax validation failed: "+e.getMessage());}
+                }
+                @Override public boolean onRenderProcessGone(WebView v,android.webkit.RenderProcessGoneDetail detail){complete.accept("The page process stopped during validation. Nothing was enabled; retry after reopening the website.");return true;}
+                @Override public void onReceivedError(WebView v,android.webkit.WebResourceRequest request,android.webkit.WebResourceError error){if(request.isForMainFrame())complete.accept("Could not open the script validator.");}
+            });
+            validator.loadDataWithBaseURL("https://validation.invalid/","<!doctype html><title>Syntax validation</title>","text/html","UTF-8",null);
         }catch(Exception e){fail.accept("Syntax validation failed: "+e.getMessage());}
     }
     void prepare(JSONObject script)throws Exception{
+        String key="deps."+hash(script);if(data.contains(key))return;
         ScriptRules rules=new ScriptRules(script.getString("code"));JSONArray cache=new JSONArray();int total=0;
         for(String type:Arrays.asList("require","resource"))for(String item:rules.values(type)){
             String name="",url=item;if(type.equals("resource")){String[] p=item.split("\\s+",2);if(p.length!=2)throw new Exception("Invalid @resource.");name=p[0];url=p[1];}
@@ -100,15 +119,16 @@ final class ScriptCoordinator {
             if(digestFragment!=null){String expected=digestFragment.replaceFirst("^sha256[=-]","");String base64=Base64.getEncoder().encodeToString(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));if(!digestFragment.startsWith("sha256")||(!digest.equalsIgnoreCase(expected)&&!base64.equals(expected)))throw new Exception("Dependency integrity mismatch or unsupported hash: "+address);}
             cache.put(r.put("type",type).put("name",name).put("source",url).put("sha256",digest));
         }
-        String key="deps."+hash(script);if(!data.edit().putString(key,cache.toString()).commit())throw new Exception("Could not cache dependencies.");
+        if(!data.edit().putString(key,cache.toString()).commit())throw new Exception("Could not cache dependencies.");
     }
     String bundle(JSONObject script)throws Exception{
         JSONObject config=new JSONObject().put("code",script.getString("code")).put("apiNames",new JSONArray(Arrays.asList(API_NAMES)));
         JSONArray cached=a.array(data.getString("deps."+hash(script),"[]"));StringBuilder requires=new StringBuilder();
         for(int i=0;i<cached.length();i++){JSONObject r=cached.getJSONObject(i);if(r.getString("type").equals("require"))requires.append(r.getString("responseText")).append("\n;\n");}
-        return "(function(){\n"+a.engine+"\n"+a.asset("tools/runtime.js")+"\nVoodooRuntime("+config+",function("+String.join(",",API_NAMES)+"){\n"+requires+script.getString("code")+"\n});})();";
+        return "(function(){\n"+a.engine+"\n"+runtime+"\nVoodooRuntime("+config+",function("+String.join(",",API_NAMES)+"){\n"+requires+script.getString("code")+"\n});})();";
     }
     void install(WebView view){
+        if(!a.alive||!a.tabs.contains(view))return;
         remove(view,false);List<Registration> list=new ArrayList<>();registrations.put(view,list);
         if(!a.setting("scripts",true))return;
         JSONArray scripts=a.userScripts();JSONObject one=manual.get(view);if(one!=null){JSONArray combined=new JSONArray();for(int n=0;n<scripts.length();n++){JSONObject s=scripts.optJSONObject(n);if(s!=null&&!s.optString("id").equals(one.optString("id")))combined.put(s);}combined.put(one);scripts=combined;}
@@ -121,25 +141,58 @@ final class ScriptCoordinator {
                 boolean temporary=one!=null&&id.equals(one.optString("id"));
                 if(!temporary&&!sourceHash.equals(approved(id))){state(id,"blocked","Review and save this script to approve execution.");continue;}
                 JavaScriptExecutionWorld world=WebViewCompat.getExecutionWorld(view,"voodoo-script-"+id);
+                Registration reg=new Registration();reg.world=world;reg.manual=temporary;list.add(reg);
                 WebViewCompat.addWebMessageListener(view,"VoodooGM",rules.origins(),world,(v,message,origin,main,proxy)->receive(v,id,sourceHash,message.getData(),origin,main,proxy));
-                Registration reg=new Registration();reg.world=world;reg.manual=temporary;reg.script=WebViewCompat.addJavaScriptOnEvent(view,bundle(script),WebViewCompat.INJECTION_EVENT_DOCUMENT_START,rules.origins(),world);list.add(reg);state(id,"enabled","Waiting for a matching document.");
+                reg.script=WebViewCompat.addJavaScriptOnEvent(view,bundle(script),WebViewCompat.INJECTION_EVENT_DOCUMENT_START,rules.origins(),world);state(id,"enabled","Waiting for a matching document.");
             }catch(Exception e){state(id,"incompatible",e.getMessage());log(id,"","error",e.getMessage());}
         }
     }
+    void refresh(JSONArray before,JSONArray after){
+        boolean changed=ScriptChanges.automaticChanged(before,after);
+        for(WebView view:new ArrayList<>(a.tabs)){
+            boolean revoke=ScriptChanges.manualChanged(manual.get(view),before,after);
+            if(revoke)manual.remove(view);
+            if(changed||revoke)install(view);
+        }
+    }
     void remove(WebView view,boolean closing){
-        List<Registration> old=registrations.remove(view);if(old!=null)for(Registration r:old){if(r.script!=null)r.script.remove();WebViewCompat.removeWebMessageListener(view,r.world,"VoodooGM");}
+        release(view,closing,false);
+    }
+    void rendererGone(WebView view){release(view,true,true);}
+    private void release(WebView view,boolean closing,boolean rendererGone){
+        List<Registration> old=registrations.remove(view);if(old!=null&&!rendererGone)for(Registration r:old){try{if(r.script!=null)r.script.remove();}catch(RuntimeException ignored){}try{WebViewCompat.removeWebMessageListener(view,r.world,"VoodooGM");}catch(RuntimeException ignored){}}
         for(Session s:new ArrayList<>(sessions))if(s.view==view){send(s,new JSONObject(), "stop");for(String request:s.requests)network.cancel(request);sessions.remove(s);}
-        if(closing){manual.remove(view);openedTabs.values().removeIf(v->v==view);}
+        if(closing){manual.remove(view);manualStarting.remove(view);openedTabs.values().removeIf(v->v==view);}
     }
     void navigating(WebView view){
         if(manual.navigating(view))install(view);
         for(Session s:new ArrayList<>(sessions))if(s.view==view){for(String request:s.requests)network.cancel(request);sessions.remove(s);}
     }
-    void finished(WebView view){if(manual.finished(view)){List<Registration> list=registrations.get(view);if(list!=null)for(Registration r:list)if(r.manual&&r.script!=null){r.script.remove();r.script=null;}}}
+    void finished(WebView view){if(manual.finished(view)){List<Registration> list=registrations.get(view);if(list!=null)for(Registration r:list)if(r.manual&&r.script!=null){try{r.script.remove();}catch(RuntimeException ignored){}r.script=null;}}}
     void runOnce(WebView view,JSONObject script,Runnable ok,java.util.function.Consumer<String> fail){
-        try{if(!isolated())throw new Exception("Update Android System WebView for isolated script execution.");ScriptRules rules=new ScriptRules(script.getString("code"));if(!rules.problems().isEmpty())throw new Exception(String.join("; ",rules.problems()));JSONObject temporary=new JSONObject(script.toString()).put("enabled",true);
-            new AlertDialog.Builder(a).setTitle("Run once after reloading?").setMessage("This reloads the target page and runs the reviewed script once. Unsaved website edits may be lost. Network and other declared permissions will be available.").setNegativeButton("Cancel",(d,w)->fail.accept("Cancelled.")).setPositiveButton("Run once",(d,w)->workers.execute(()->{try{prepare(temporary);a.runOnUiThread(()->validateBatch(Collections.singletonList(temporary),0,()->{if(!a.alive||!a.tabs.contains(view)){fail.accept("Target tab was closed.");return;}manual.schedule(view,temporary);install(view);view.reload();ok.run();},fail));}catch(Exception e){a.runOnUiThread(()->fail.accept(e.getMessage()));}})).show();
-        }catch(Exception e){fail.accept(e.getMessage());}
+        java.util.function.Consumer<String> failed=message->{manualStarting.remove(view);if(a.alive)fail.accept(message);};
+        boolean acquired=false;
+        try{
+            if(!a.alive||!a.tabs.contains(view))throw new Exception("Target tab was closed.");
+            if(manualStarting.contains(view))throw new Exception("A script activation is already being prepared for this tab.");
+            if(!isolated())throw new Exception("Update Android System WebView for isolated script execution.");
+            String target=a.tabUrl(view);ScriptRules rules=new ScriptRules(script.getString("code"));
+            if(!a.setting("scripts",true)||!rules.allows(target))throw new Exception("Open a matching website and enable userscripts first.");
+            if(!rules.problems().isEmpty())throw new Exception(String.join("; ",rules.problems()));
+            JSONObject temporary=new JSONObject(script.toString()).put("enabled",true);manualStarting.add(view);acquired=true;
+            new AlertDialog.Builder(a).setTitle("Activate script?")
+                .setMessage(rules.first("name","Script")+"\n\nReloads this website once and runs this script. Unsaved website edits may be lost.\n\nSites: "+rules.matches+rules.includes+"\nGrants: "+rules.values("grant")+"\nNetwork: "+rules.values("connect"))
+                .setNegativeButton("Cancel",(d,w)->failed.accept("Cancelled."))
+                .setOnCancelListener(d->failed.accept("Cancelled."))
+                .setPositiveButton("Activate & reload",(d,w)->{
+                    if(!a.alive)return;
+                    workers.execute(()->{try{prepare(temporary);a.runOnUiThread(()->validateBatch(Collections.singletonList(temporary),0,()->{
+                        if(!a.alive||!a.tabs.contains(view)){failed.accept("Target tab was closed.");return;}
+                        if(!target.equals(a.tabUrl(view))||!a.setting("scripts",true)){failed.accept("The target website changed. Choose Activate again.");return;}
+                        manualStarting.remove(view);manual.schedule(view,temporary);install(view);view.reload();ok.run();
+                    },failed));}catch(Exception e){a.runOnUiThread(()->failed.accept(e.getMessage()));}});
+                }).show();
+        }catch(Exception e){if(acquired)failed.accept(e.getMessage());else if(a.alive)fail.accept(e.getMessage());}
     }
     Session session(WebView v,String id,String hash,String url,JavaScriptReplyProxy proxy){
         for(Session s:sessions)if(s.proxy==proxy&&s.scriptId.equals(id))return s;
@@ -220,5 +273,5 @@ final class ScriptCoordinator {
         for(Iterator<String> it=runtime.keys();it.hasNext();){String id=it.next();find(id);JSONObject entry=runtime.getJSONObject(id),values=entry.getJSONObject("values");if(values.toString().length()>1000000)throw new Exception("Script values too large.");JSONArray history=entry.optJSONArray("history");if(history==null)history=new JSONArray();if(history.length()>20)throw new Exception("Too many script versions.");for(int i=0;i<history.length();i++)new ScriptRules(history.getJSONObject(i).getString("code"));edit.putString("values."+id,values.toString()).putString("history."+id,history.toString()).putString("blocked."+id,entry.optJSONArray("blocked")==null?"[]":entry.getJSONArray("blocked").toString()).remove("approval."+id);}
         if(!edit.commit())throw new Exception("Could not restore script values.");
     }
-    void close(){for(WebView v:new ArrayList<>(registrations.keySet()))remove(v,true);network.close();workers.shutdownNow();}
+    void close(){for(Runnable cancel:new ArrayList<>(validators.values()))cancel.run();for(WebView v:new ArrayList<>(registrations.keySet()))remove(v,true);network.close();workers.shutdownNow();}
 }

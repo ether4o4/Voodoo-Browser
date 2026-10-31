@@ -12,6 +12,22 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+## 0.3.5 — script stability and activation controls
+
+Tap a script in Magic scripts or **Saved scripts**, then choose **Save to scripts**
+(inactive), **Automatic activation** (on matching page loads), or **Manual
+activation** (only after tapping **Activate**). Each choice keeps the script in
+the saved list. Saving does not reload a website; Activate explicitly reloads
+it once. The editor has the same choices plus **Back to website** and **Magic
+scripts** shortcuts.
+
+The script validator now handles renderer termination and Activity cleanup.
+Saving inactive scripts no longer resets all live script sessions. Script route
+checks pause on hidden pages, discovery renders 20 results at a time and retains
+at most eight cached domains, and unchanged approved dependencies are reused.
+These are targeted fixes, not a replacement browser engine. See
+[changes, evidence and remaining device checks](docs/RELEASE-0.3.5.md).
+
 ## 0.3.4 — mobile script discovery
 
 Magic scripts now searches the site's registrable domain: `m.youtube.com` and

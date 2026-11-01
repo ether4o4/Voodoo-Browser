@@ -1,14 +1,17 @@
 <resources>
+  <!-- Ultra Max visual foundation: resource-only change, no navigation or browser logic changes. -->
   <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
     <item name="android:fontFamily">sans</item>
-    <item name="android:colorAccent">#9BBEB4</item>
-    <item name="android:textColorPrimary">#EEE7EF</item>
-    <item name="android:textColorSecondary">#B0ACB7</item>
-    <item name="android:colorBackground">#25262B</item>
-    <item name="android:colorBackgroundFloating">#303238</item>
+    <item name="android:colorAccent">#A9C8C0</item>
+    <item name="android:textColorPrimary">#F4F3F5</item>
+    <item name="android:textColorSecondary">#B9B8BE</item>
+    <item name="android:colorBackground">#090A0C</item>
+    <item name="android:colorBackgroundFloating">#191B20</item>
     <item name="android:windowLightStatusBar">false</item>
     <item name="android:windowLightNavigationBar">false</item>
     <item name="android:windowActionModeOverlay">true</item>
-    <item name="android:windowBackground">#25262B</item>
+    <item name="android:windowBackground">#090A0C</item>
+    <item name="android:statusBarColor">#090A0C</item>
+    <item name="android:navigationBarColor">#090A0C</item>
   </style>
 </resources>

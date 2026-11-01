@@ -1,4 +1,4 @@
-name: Android build
+name: Android build - Ultra Max
 on:
   push:
     branches: [main, design/ultra-max-graphics]

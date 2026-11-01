@@ -24,7 +24,8 @@ public class MainActivity extends Activity {
     final ArrayList<WebView> tabs=new ArrayList<>();final Map<WebView,String> deferredTabs=new HashMap<>(),initialUrls=new HashMap<>();final Map<WebView,List<ScriptHandler>> injection=new HashMap<>();final Map<WebView,RecentSites.Visit> recentVisits=new HashMap<>();
     final ExecutorService io=Executors.newFixedThreadPool(2);final AiClient ai=new AiClient();
     android.content.SharedPreferences prefs;PinStore pins;RecentSites recentSites;SecureKeys keys;WebViewAssetLoader assets;ScriptCoordinator scripts;ScriptDiscovery discovery;LocalScriptAi localAi;VoiceController voice;
-    LinearLayout layout,pinBar,pinStrip;Button workspaceButton;FrameLayout content;EditText address;ProgressBar progress;Button tabButton;
+    LinearLayout layout,pinBar,pinStrip,navigationBar;Button workspaceButton;FrameLayout content;EditText address;ProgressBar progress;Button tabButton;
+    ImageButton navigationToggle;NavigationPreference navigationPreference;
     WebView current,lastSite;ValueCallback<Uri[]> chooser;String exportText;ValueCallback<String> exportReply;
     View fullScreen;WebChromeClient.CustomViewCallback fullScreenCallback;
     String engine;boolean alive=true;
@@ -34,6 +35,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved){super.onCreate(saved);
         bridge(this).attach(this);
         prefs=getSharedPreferences("voodoo_data_v1",MODE_PRIVATE);keys=new SecureKeys(this);pins=new PinStore(prefs);recentSites=new RecentSites(prefs);
+        navigationPreference=new NavigationPreference(prefs);
         assets=new WebViewAssetLoader.Builder().addPathHandler("/assets/",new WebViewAssetLoader.AssetsPathHandler(this)).build();
         engine=asset("studio/engine.js");scripts=new ScriptCoordinator(this);discovery=new ScriptDiscovery(this);localAi=new LocalScriptAi(this);voice=new VoiceController(this);
         layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setBackgroundColor(Color.BLACK);
@@ -42,15 +44,16 @@ public class MainActivity extends Activity {
         address=new EditText(this);address.setSingleLine();address.setTextSize(15);address.setHint("Search or enter address");address.setSelectAllOnFocus(false);address.setOnFocusChangeListener((v,focused)->{if(focused)address.setText("");else if(current!=null)showAddress(tabUrl(current));});address.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);address.setImeOptions(EditorInfo.IME_ACTION_GO);
         address.setTextColor(CYAN);address.setHintTextColor(MUTED);address.setPadding(dp(14),0,dp(14),0);address.setBackground(addressSurface());address.setBackgroundTintList(null);
         address.setOnEditorActionListener((v,a,e)->{navigate(address.getText().toString());return true;});
-        top.addView(address,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(button("Go",()->navigate(address.getText().toString())),new LinearLayout.LayoutParams(dp(56),dp(48)));layout.addView(top);
+        top.addView(address,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(button("Go",()->navigate(address.getText().toString())),new LinearLayout.LayoutParams(dp(56),dp(48)));
+        navigationToggle=new ImageButton(this);navigationToggle.setImageResource(R.drawable.ic_navigation_toggle);navigationToggle.setPadding(dp(12),dp(12),dp(12),dp(12));navigationToggle.setBackgroundTintList(null);navigationToggle.setOnClickListener(v->{navigationPreference.toggle(isLandscape());applyNavigationVisibility();});top.addView(navigationToggle,new LinearLayout.LayoutParams(dp(48),dp(48)));layout.addView(top);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);layout.addView(progress,new LinearLayout.LayoutParams(-1,dp(2)));
         pinBar=new LinearLayout(this);pinBar.setGravity(Gravity.CENTER_VERTICAL);pinBar.setPadding(dp(5),0,dp(5),0);
         workspaceButton=button("All ▾",this::workspaceMenu);workspaceButton.setTextSize(12);workspaceButton.setSingleLine(true);workspaceButton.setEllipsize(android.text.TextUtils.TruncateAt.END);pinBar.addView(workspaceButton,new LinearLayout.LayoutParams(dp(96),dp(48)));
         HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);pinStrip=new LinearLayout(this);pinStrip.setGravity(Gravity.CENTER_VERTICAL);scroll.addView(pinStrip);pinBar.addView(scroll,new LinearLayout.LayoutParams(0,dp(48),1));Button addPin=button("＋",this::choosePin);addPin.setContentDescription("Pin current website");addPin.setTextColor(SEAFOAM);pinBar.addView(addPin,new LinearLayout.LayoutParams(dp(48),dp(48)));layout.addView(pinBar);refreshPinBar();
         content=new FrameLayout(this);layout.addView(content,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout bar=new LinearLayout(this);
+        LinearLayout bar=new LinearLayout(this);navigationBar=bar;
         bar.addView(nav("‹",()->{if(current.canGoBack())current.goBack();},"Back"));bar.addView(nav("›",()->{if(current.canGoForward())current.goForward();},"Forward"));
-        tabButton=nav("▣",this::tabsMenu,"Tabs");bar.addView(tabButton);bar.addView(nav("⌂",()->current.loadUrl(HOME),"Home"));bar.addView(nav("⚒",this::toolsMenu,"Browser tools"));bar.addView(nav("☆",this::savedMenu,"Saved"));layout.addView(bar);setContentView(layout);
+        tabButton=nav("▣",this::tabsMenu,"Tabs");bar.addView(tabButton);bar.addView(nav("⌂",()->current.loadUrl(HOME),"Home"));bar.addView(nav("⚒",this::toolsMenu,"Browser tools"));bar.addView(nav("☆",this::savedMenu,"Saved"));layout.addView(bar);applyNavigationVisibility();setContentView(layout);
         if(!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)){new AlertDialog.Builder(this).setTitle(label("Update Android System WebView",GOLD)).setMessage("Voodoo needs a newer Android System WebView for its built-in tools. Update it through Play Store, then reopen this app.").setPositiveButton("Close",(d,w)->finish()).setCancelable(false).show();return;}
         String incoming=getIntent().getDataString();
         if(incoming!=null&&webUrl(incoming))newTab(normalize(incoming));else{
@@ -60,6 +63,14 @@ public class MainActivity extends Activity {
         applySettings();
         if (bridge(this).paired()) try { bridge(this).connect(); } catch (Exception ignored) {}
     }
+    boolean isLandscape(){return getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;}
+    void applyNavigationVisibility(){
+        boolean hidden=navigationPreference.hidden(isLandscape());navigationBar.setVisibility(hidden?View.GONE:View.VISIBLE);
+        String action=hidden?"Show navigation":"Hide navigation";navigationToggle.setContentDescription(action);navigationToggle.setTooltipText(action);navigationToggle.setSelected(hidden);
+        navigationToggle.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3062E8C1),rounded(hidden?0xFF17382F:Color.TRANSPARENT,hidden?SEAFOAM:0),rounded(Color.WHITE,0)));
+        if(Build.VERSION.SDK_INT>=30)navigationToggle.setStateDescription(hidden?"Navigation hidden":"Navigation visible");
+    }
+    @Override public void onConfigurationChanged(android.content.res.Configuration configuration){super.onConfigurationChanged(configuration);applyNavigationVisibility();}
     Set<String> origins(String... values){return new HashSet<>(Arrays.asList(values));}
     int dp(int x){return Math.round(x*getResources().getDisplayMetrics().density);}
     android.graphics.drawable.GradientDrawable rounded(int fill,int stroke){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(14));if(stroke!=0)d.setStroke(dp(1),stroke);return d;}

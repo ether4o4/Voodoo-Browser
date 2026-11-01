@@ -12,6 +12,17 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+## 0.3.6 — immersion toggle and clearer workspace globe
+
+Tap the navigation icon beside **Go** to hide or restore the bottom toolbar.
+The highlighted icon means the toolbar is hidden. Portrait and landscape remember
+separate choices; both start with navigation visible. The address bar stays
+available, Android Back still works, and changing the toolbar does not reload tabs.
+
+The stitched globe now has richer plum and jade colors, edge lighting, brighter
+pins, and a selection ring. Pin positions, workspaces, dragging, and reduced-motion
+behavior are preserved. See [release details](docs/RELEASE-0.3.6.md).
+
 ## 0.3.5 — script stability and activation controls
 
 Tap a script in Magic scripts or **Saved scripts**, then choose **Save to scripts**

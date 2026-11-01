@@ -1,0 +1,58 @@
+name: Publish verified Android preview
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Android build run to publish
+        required: true
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Download and validate the successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ inputs.run_id }}
+        run: |
+          gh run view "$BUILD_RUN" --json conclusion,headSha,workflowName > run.json
+          gh run download "$BUILD_RUN" --name Voodoo-development-and-unsigned-release --dir artifact
+          python3 - <<'PY'
+          import hashlib, json, pathlib, shutil, subprocess
+          run = json.loads(pathlib.Path('run.json').read_text())
+          assert run['conclusion'] == 'success' and run['workflowName'] == 'Android build'
+          evidence = json.loads(pathlib.Path('artifact/verification/build-evidence.json').read_text())
+          assert evidence['commit'] == run['headSha']
+          subprocess.run(['git', 'merge-base', '--is-ancestor', evidence['commit'], 'HEAD'], check=True)
+          debug = next(apk for apk in evidence['apks'] if apk['file'] == 'app-debug.apk')
+          assert debug['package'] == 'com.ether4o4.voodoo.dev' and debug['assets_match_source']
+          assert debug['signing'] == 'verified development key'
+          apk = pathlib.Path('artifact/app/build/outputs/apk/debug/app-debug.apk')
+          assert hashlib.sha256(apk.read_bytes()).hexdigest() == debug['sha256']
+          out = pathlib.Path('preview'); out.mkdir()
+          name = 'Voodoo-Browser-mobile-preview.apk'
+          shutil.copyfile(apk, out / name)
+          shutil.copyfile('artifact/verification/build-evidence.json', out / 'build-evidence.json')
+          (out / 'SHA256SUMS.txt').write_text(debug['sha256'] + '  ' + name + '\n')
+          version = debug['versionName'].removesuffix('-dev')
+          notes = pathlib.Path('docs/RELEASE-' + version + '.md').read_text()
+          (out / 'notes.md').write_text(notes + '\nBuilt from commit `' + evidence['commit'] + '`. See attached build evidence for test counts and APK checksums.\n')
+          pathlib.Path('preview-version.txt').write_text(version)
+          PY
+      - name: Update rolling preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload mobile-preview preview/Voodoo-Browser-mobile-preview.apk preview/build-evidence.json preview/SHA256SUMS.txt --clobber
+          SOURCE_SHA=$(python3 -c 'import json; print(json.load(open("preview/build-evidence.json"))["commit"])')
+          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/mobile-preview" -f sha="$SOURCE_SHA" -F force=true
+          VERSION=$(cat preview-version.txt)
+          gh release edit mobile-preview --title "Android preview $VERSION — rolling update" --notes-file preview/notes.md --prerelease

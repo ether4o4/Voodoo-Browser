@@ -12,6 +12,24 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+> The rolling preview is published from `main` by the *Publish verified Android
+> preview* workflow. Until 0.3.7 is merged and that workflow is run, the links above
+> still serve the 0.3.6 preview.
+
+## 0.3.7 — Chrome extensions (preview)
+
+**Tools → Extensions** installs Chrome extensions from the Chrome Web Store (CRX3
+signature and ID verified) or from a `.crx`/`.zip` file, after a permission review.
+Manifest V2 and V3 are supported: background pages and service workers, isolated
+content scripts, popups, options, messaging, storage, tabs, scripting and
+declarativeNetRequest blocking. No other browser behavior or UI changed.
+
+This is Voodoo's own extension runtime, because Android WebView has none. Some Chrome
+APIs cannot work in WebView, including blocking `webRequest`, `identity`, native
+messaging and DNR redirects. It has not yet been tested on a phone, and extension code
+is not audited. See [API coverage and limits](docs/EXTENSIONS.md) and
+[release notes](docs/RELEASE-0.3.7.md).
+
 ## 0.3.6 — immersion toggle and clearer workspace globe
 
 Tap the navigation icon beside **Go** to hide or restore the bottom toolbar.
@@ -159,7 +177,7 @@ The debug variant has application ID `com.ether4o4.voodoo.dev` so CI/debug signi
 
 See [the current bridge review](docs/BRIDGE-REVIEW.md) for executed checks and remaining acceptance work. The JavaScript suite covers lyric protection, backups, writing UI startup, script URL rules, helpers, editor persistence, AI-to-draft behavior, and workspace pin validation and flows. Native checks cover script URL boundaries and HTTPS API endpoints. See [docs/TESTING.md](docs/TESTING.md).
 
-This is an **initial personal-use alpha**, not a production-audited browser. No physical-device or emulator UI run, real provider-key request, or live Suno generation has been completed in this environment. The phone's USB connection is not exposed to the build environment. Some identity providers disallow embedded-browser sign-in. Website camera/microphone permissions, geolocation, password-manager integration, external-page blob downloads, and full browser-extension compatibility are not implemented. Normal HTTPS downloads and native Workbench/script/backup exports are implemented.
+This is an **initial personal-use alpha**, not a production-audited browser. No physical-device or emulator UI run, real provider-key request, or live Suno generation has been completed in this environment. The phone's USB connection is not exposed to the build environment. Some identity providers disallow embedded-browser sign-in. Website camera/microphone permissions, geolocation, password-manager integration and external-page blob downloads are not implemented. Chrome extensions run through Voodoo's own runtime with the API limits listed in [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Normal HTTPS downloads and native Workbench/script/backup exports are implemented.
 
 All AI adapters are text chat adapters; “custom endpoint” supports the three implemented wire formats, not every possible proprietary API. Chat-app subscriptions are separate from provider API access/billing.
 

@@ -6,15 +6,15 @@ android {
         applicationId 'com.ether4o4.voodoo'
         minSdk 29
         targetSdk 36
-        versionCode 14
-        versionName '0.3.7'
+        versionCode 15
+        versionName '0.3.8'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes {
         debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev' }
         release { minifyEnabled false }
     }
-    packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += ['**/libvoodoo-completion.so'] } }
+    packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += ['**/libvoodoo-completion.so']; excludes += ['lib/x86/libtor.so','lib/x86_64/libtor.so'] } }
     lint { abortOnError true }
 }
 tasks.register('verifyLocalRuntime') {
@@ -31,6 +31,7 @@ tasks.withType(Test).configureEach {
 dependencies {
     implementation 'androidx.webkit:webkit:1.18.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'info.guardianproject:tor-android:0.4.9.5'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
 }

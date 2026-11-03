@@ -12,9 +12,18 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
-> The rolling preview is published from `main` by the *Publish verified Android
-> preview* workflow. Until 0.3.7 is merged and that workflow is run, the links above
-> still serve the 0.3.6 preview.
+## 0.3.8 — Private mode (preview)
+
+**Tools → Private mode** opens private tabs. Their cookies, site data, cache and
+history live in a throwaway profile that is deleted when you leave or close the app.
+Tab lists and recent sites aren't saved, and screenshots are blocked. Optional
+built-in Tor (on by default) hides your IP address and DNS; websites stay blocked
+until Tor connects. WebRTC, location, sensors and common fingerprinting surfaces are
+blocked or masked. Your normal tabs come back when you leave.
+
+No browser is 100% private: signing in identifies you, and WebView is not Tor
+Browser. Tor covers browsing, not AI chat or other app features. This preview hasn't
+been tested on a phone yet. See [what's protected and the limits](docs/PRIVACY.md).
 
 ## 0.3.7 — Chrome extensions (preview)
 

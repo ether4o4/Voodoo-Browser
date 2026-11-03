@@ -27,7 +27,7 @@ final class ScriptDiscovery {
     private volatile String activeFetch;
     ScriptDiscovery(MainActivity activity){a=activity;}
     void attach(WebView view){
-        String url=a.tabUrl(view);if(a.current!=view||a.local(url)||!a.webUrl(url)){if(launcher!=null&&launcher.getParent()!=null)((android.view.ViewGroup)launcher.getParent()).removeView(launcher);return;}
+        String url=a.tabUrl(view);if(a.current!=view||a.privacy!=null&&a.privacy.active||a.local(url)||!a.webUrl(url)){if(launcher!=null&&launcher.getParent()!=null)((android.view.ViewGroup)launcher.getParent()).removeView(launcher);return;}
         if(launcher==null){launcher=a.button("JS",()->{if(a.current!=null)show(a.current);});launcher.setContentDescription("Magic scripts: discover, save or activate a script");launcher.setTextColor(MainActivity.SEAFOAM);launcher.setBackground(a.rounded(0xEB25262B,MainActivity.SEAFOAM));}
         if(launcher.getParent()==a.content)return;if(launcher.getParent()!=null)((android.view.ViewGroup)launcher.getParent()).removeView(launcher);
         FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(a.dp(48),a.dp(48),Gravity.BOTTOM|Gravity.END);p.setMargins(0,0,a.dp(10),a.dp(10));a.content.addView(launcher,p);

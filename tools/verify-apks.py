@@ -51,11 +51,14 @@ for flavor, package in [('debug', 'com.ether4o4.voodoo.dev'), ('release', 'com.e
     if flavor == 'debug':
         signature = run(str(apksigner), 'verify', '--verbose', '--print-certs', str(apk))
         (out / 'debug-signature.txt').write_text(signature)
+        signer = re.findall(r'Signer #1 certificate SHA-256 digest: ([0-9a-f]{64})', signature)
+        assert len(signer) == 1, 'Expected exactly one debug signer'
     report['apks'].append({'file': apk.name, 'package': package, 'bytes': apk.stat().st_size,
         'versionCode': int(actual['versionCode']), 'versionName': actual['versionName'],
         'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(), 'assets_match_source': True,
         'suno_assets_absent': True,
-        'signing': 'verified development key' if flavor == 'debug' else signature})
+        'signing': 'verified development key' if flavor == 'debug' else signature,
+        **({'signer_sha256': signer[0]} if flavor == 'debug' else {})})
 xmls = list((root / 'app/build/test-results/testDebugUnitTest').glob('TEST-*.xml'))
 assert xmls, 'Missing native unit test results'
 for xml in xmls:

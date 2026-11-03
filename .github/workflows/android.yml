@@ -30,7 +30,19 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y binutils-aarch64-linux-gnu
       - run: python3 -m unittest discover -s tests -p "*_test.py"
       - run: python3 tools/fetch-llama-runtime.py
+      - name: Install persistent development signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VOODOO_DEV_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::VOODOO_DEV_KEYSTORE_BASE64 is not set; this build uses a temporary debug key and cannot be published."
+          else
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/voodoo-dev.p12"
+            echo "VOODOO_DEV_KEYSTORE=$RUNNER_TEMP/voodoo-dev.p12" >> "$GITHUB_ENV"
+          fi
       - run: chmod +x gradlew && ./gradlew testDebugUnitTest assembleDebug assembleRelease lintRelease --no-daemon
+        env:
+          VOODOO_DEV_KEYSTORE_PASSWORD: ${{ secrets.VOODOO_DEV_KEYSTORE_PASSWORD }}
       - run: python3 tools/verify-apks.py
       - name: Include public signing tool for local release signing
         run: |

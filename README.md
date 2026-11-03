@@ -12,6 +12,10 @@ It does not replace or import your original browser profile. A data-preserving
 release update requires the original signing key. Preview builds have not received
 an independent security audit; keep high-value credentials in your existing browser.
 
+From 0.3.9, previews are signed with one persistent development key and install over
+each other. Moving from 0.3.8 or earlier needs a one-time uninstall of the dev app
+(older previews used throwaway keys). See [release notes](docs/RELEASE-0.3.9.md).
+
 ## 0.3.8 — Private mode (preview)
 
 **Tools → Private mode** opens private tabs. Their cookies, site data, cache and

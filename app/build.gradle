@@ -6,12 +6,23 @@ android {
         applicationId 'com.ether4o4.voodoo'
         minSdk 29
         targetSdk 36
-        versionCode 15
-        versionName '0.3.8'
+        versionCode 16
+        versionName '0.3.9'
+    }
+    // CI signs development builds with one persistent key from repository secrets, so
+    // preview updates install over each other. Local builds keep Android's debug key.
+    signingConfigs {
+        dev {
+            def keystore = System.getenv('VOODOO_DEV_KEYSTORE')
+            if (keystore) {
+                storeFile file(keystore); storeType 'pkcs12'; keyAlias 'voodoo-dev'
+                storePassword System.getenv('VOODOO_DEV_KEYSTORE_PASSWORD'); keyPassword System.getenv('VOODOO_DEV_KEYSTORE_PASSWORD')
+            }
+        }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes {
-        debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev' }
+        debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev'; if (System.getenv('VOODOO_DEV_KEYSTORE')) signingConfig signingConfigs.dev }
         release { minifyEnabled false }
     }
     packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += ['**/libvoodoo-completion.so']; excludes += ['lib/x86/libtor.so','lib/x86_64/libtor.so'] } }

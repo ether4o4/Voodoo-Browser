@@ -34,6 +34,9 @@ jobs:
           debug = next(apk for apk in evidence['apks'] if apk['file'] == 'app-debug.apk')
           assert debug['package'] == 'com.ether4o4.voodoo.dev' and debug['assets_match_source']
           assert debug['signing'] == 'verified development key'
+          # Only the persistent development key may publish, so preview updates install in place.
+          pinned = pathlib.Path('tools/dev-signing-cert.sha256').read_text().split()[0]
+          assert debug.get('signer_sha256') == pinned, 'Debug APK is not signed with the persistent development key'
           apk = pathlib.Path('artifact/app/build/outputs/apk/debug/app-debug.apk')
           assert hashlib.sha256(apk.read_bytes()).hexdigest() == debug['sha256']
           out = pathlib.Path('preview'); out.mkdir()

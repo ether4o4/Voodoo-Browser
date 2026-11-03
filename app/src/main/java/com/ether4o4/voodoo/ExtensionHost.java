@@ -243,8 +243,10 @@ final class ExtensionHost {
     }
     void reinstallAll(){for(WebView v:new ArrayList<>(a.tabs))install(v);}
 
+    /** Private tabs are invisible to extensions, as incognito tabs are in Chrome by default. */
+    boolean privateMode(){return a.privacy!=null&&a.privacy.active;}
     void tabUpdated(WebView view,String url,String state){
-        if(closed||!a.tabs.contains(view))return;
+        if(closed||privateMode()||!a.tabs.contains(view))return;
         topUrls.put(view,url==null?"":url);
         // Documents report pagehide themselves; this also clears frames that could not, without
         // dropping a new document whose hello raced ahead of onPageStarted.
@@ -252,11 +254,11 @@ final class ExtensionHost {
         status.put(view,state);
         try{JSONObject change=new JSONObject().put("status",state);if("loading".equals(state)&&url!=null)change.put("url",url);broadcastTabs("updated",new JSONArray().put(tabId(view)).put(change).put(tabJson(view,null)));}catch(Exception ignored){}
     }
-    void activated(WebView view){if(closed||!a.tabs.contains(view))return;try{broadcastTabs("activated",new JSONArray().put(new JSONObject().put("tabId",tabId(view)).put("windowId",1)));}catch(Exception ignored){}}
-    void created(WebView view){try{broadcastTabs("created",new JSONArray().put(tabJson(view,null)));}catch(Exception ignored){}}
+    void activated(WebView view){if(closed||privateMode()||!a.tabs.contains(view))return;try{broadcastTabs("activated",new JSONArray().put(new JSONObject().put("tabId",tabId(view)).put("windowId",1)));}catch(Exception ignored){}}
+    void created(WebView view){if(privateMode())return;try{broadcastTabs("created",new JSONArray().put(tabJson(view,null)));}catch(Exception ignored){}}
     void closed(WebView view){
         Integer id=tabIds.remove(view);uninstall(view);forget(view);status.remove(view);topUrls.remove(view);
-        if(id!=null)try{broadcastTabs("removed",new JSONArray().put(id).put(new JSONObject().put("windowId",1).put("isWindowClosing",false)));}catch(Exception ignored){}
+        if(id!=null&&!privateMode())try{broadcastTabs("removed",new JSONArray().put(id).put(new JSONObject().put("windowId",1).put("isWindowClosing",false)));}catch(Exception ignored){}
     }
     void forget(WebView view){for(Endpoint p:new ArrayList<>(endpoints))if(p.view==view)drop(p);}
     void drop(Endpoint p){
@@ -300,6 +302,9 @@ final class ExtensionHost {
                 if(!Objects.equals(actual.getHost(),origin.getHost())&&!self.url.startsWith("about:")&&!self.url.startsWith("blob:")&&!self.url.startsWith("data:"))throw new Exception("Frame origin mismatch.");
                 if(!Arrays.asList("hello","bye","storage-get","storage-bytes","storage-set","storage-remove","storage-clear","send-message","connect","port-post","port-disconnect","respond","exec-result").contains(op))throw new Exception("chrome."+op+" is not available to content scripts.");
                 if(op.equals("send-message")&&!"runtime".equals(req.optString("target")))throw new Exception("Content scripts can only message their extension.");
+            }
+            if(privateMode()&&(op.startsWith("tabs-")||op.equals("execute")||op.equals("windows-get")||op.equals("open-options")||op.equals("download")||op.equals("send-message")&&"tab".equals(req.optString("target"))||op.equals("connect")&&"tab".equals(req.optString("target")))){
+                if(op.equals("tabs-query"))reply(proxy,rid,new JSONArray(),null);else reply(proxy,rid,null,"Tabs are unavailable to extensions while private mode is on.");return;
             }
             handle(e,self,req,op,rid);
         }catch(Exception ex){reply(proxy,rid,null,ex.getMessage()==null?"Extension operation failed.":ex.getMessage());}
@@ -578,7 +583,7 @@ final class ExtensionHost {
     WebResourceResponse intercept(WebView view,WebResourceRequest r,boolean tab){
         Uri u=r.getUrl();String host=u.getHost();String id=extId(host);
         if(id!=null){
-            Ext e=snapshot.get(id);if(e==null||!e.enabled)return empty(404,"Not Found");
+            Ext e=snapshot.get(id);if(e==null||!e.enabled||tab&&privateMode())return empty(404,"Not Found");
             String path=u.getPath()==null||u.getPath().equals("/")?"/index.html":u.getPath();
             if(tab&&!r.isForMainFrame()){
                 String ref=null;for(Map.Entry<String,String> h:r.getRequestHeaders().entrySet())if(h.getKey().equalsIgnoreCase("Referer"))ref=h.getValue();

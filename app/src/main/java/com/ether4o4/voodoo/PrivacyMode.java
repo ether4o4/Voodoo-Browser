@@ -12,7 +12,6 @@ import android.widget.TextView;
 import androidx.webkit.*;
 import java.util.*;
 import java.util.concurrent.*;
-import org.torproject.jni.TorService;
 
 /**
  * Private mode: private tabs use a separate throwaway WebView profile that is deleted
@@ -35,7 +34,10 @@ final class PrivacyMode {
     int session,headersSession=-1;
     long seed;
     ServiceConnection torConnection;
-    volatile TorService tor;
+    /** org.torproject.jni.TorService, used reflectively: tor-android ships Java 21 class files and CI compiles with JDK 17. */
+    volatile Object tor;
+    static final String TOR_SERVICE="org.torproject.jni.TorService";
+    Intent torIntent(){return new Intent().setClassName(a,TOR_SERVICE);}
     String shield;
 
     PrivacyMode(MainActivity activity){a=activity;}
@@ -122,16 +124,16 @@ final class PrivacyMode {
     }
     void startTor(int mySession){
         torConnection=new ServiceConnection(){
-            @Override public void onServiceConnected(ComponentName name,IBinder binder){tor=((TorService.LocalBinder)binder).getService();long deadline=System.currentTimeMillis()+120_000;poll(mySession,deadline);}
+            @Override public void onServiceConnected(ComponentName name,IBinder binder){try{tor=binder.getClass().getMethod("getService").invoke(binder);}catch(Exception e){torFailed(mySession,"Tor could not start on this device.");return;}long deadline=System.currentTimeMillis()+120_000;poll(mySession,deadline);}
             @Override public void onServiceDisconnected(ComponentName name){tor=null;if(active&&usingTor&&session==mySession){torReady=false;indicate();a.toast("Tor stopped. Websites stay blocked until you leave and re-enter private mode.");}}
         };
-        try{if(!a.bindService(new Intent(a,TorService.class),torConnection,Context.BIND_AUTO_CREATE))throw new IllegalStateException();}
+        try{if(!a.bindService(torIntent(),torConnection,Context.BIND_AUTO_CREATE))throw new IllegalStateException();}
         catch(RuntimeException e){torConnection=null;torFailed(mySession,"Tor could not start on this device.");}
     }
     void poll(int mySession,long deadline){
         worker.execute(()->{
-            TorService t=tor;int port=-1;String established=null,progress=null;
-            try{if(t!=null){port=t.getHttpTunnelPort();established=t.getInfo("status/circuit-established");progress=t.getInfo("status/bootstrap-phase");}}catch(Exception ignored){}
+            Object t=tor;int port=-1;String established=null,progress=null;
+            try{if(t!=null){port=(Integer)t.getClass().getMethod("getHttpTunnelPort").invoke(t);java.lang.reflect.Method info=t.getClass().getMethod("getInfo",String.class);established=(String)info.invoke(t,"status/circuit-established");progress=(String)info.invoke(t,"status/bootstrap-phase");}}catch(Exception ignored){}
             int p=port;String est=established,phase=progress;
             main.post(()->{
                 if(!active||session!=mySession||closed)return;
@@ -154,7 +156,7 @@ final class PrivacyMode {
     void stopTor(){
         tor=null;torReady=false;
         if(torConnection!=null){try{a.unbindService(torConnection);}catch(RuntimeException ignored){}torConnection=null;}
-        try{a.stopService(new Intent(a,TorService.class));}catch(RuntimeException ignored){}
+        try{a.stopService(torIntent());}catch(RuntimeException ignored){}
     }
     void confirmExit(){
         new AlertDialog.Builder(a).setTitle(a.label("Leave private mode?",MainActivity.PINK)).setMessage("Private tabs close and their cookies, site data, cache and history are deleted. Your normal tabs come back.")

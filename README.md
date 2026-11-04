@@ -16,6 +16,12 @@ From 0.3.9, previews are signed with one persistent development key and install 
 each other. Moving from 0.3.8 or earlier needs a one-time uninstall of the dev app
 (older previews used throwaway keys). See [release notes](docs/RELEASE-0.3.9.md).
 
+## 0.3.10 — private mode hardening
+
+Closes a WebRTC IP leak through page-created frames, shields background workers,
+disables service workers and keeps private tabs out of autofill and password managers.
+See [details and verification](docs/RELEASE-0.3.10.md).
+
 ## 0.3.8 — Private mode (preview)
 
 **Tools → Private mode** opens private tabs. Their cookies, site data, cache and

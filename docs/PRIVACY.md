@@ -30,6 +30,8 @@ manager doesn't use Tor and would reveal your IP address.
   continue without Tor, or leave.
 - Location access, camera, microphone and screen capture are always denied.
 - **WebRTC** is removed, because it can reveal your real IP address outside the proxy.
+  This also covers child frames and new windows a page creates, as soon as they are
+  reachable.
 
 ## Fingerprinting
 
@@ -46,6 +48,9 @@ Private tabs report:
 - The Do Not Track and Global Privacy Control signals, as JavaScript values and as
   `DNT`/`Sec-GPC` request headers where WebView supports custom headers.
 - Third-party cookies blocked, HTTPS only (no plain-HTTP or mixed content).
+- The same protections inside dedicated and shared workers. Service workers are
+  disabled.
+- Private tabs are excluded from Android autofill and password managers.
 
 ## Limits
 

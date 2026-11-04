@@ -64,6 +64,8 @@ final class PrivacyMode {
         }catch(RuntimeException ignored){}
     }
     void configure(WebView v){
+        // Keep password managers and other autofill services from capturing private-tab input.
+        v.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
         WebSettings s=v.getSettings();
         s.setUserAgentString(userAgent());
         s.setGeolocationEnabled(false);
@@ -109,7 +111,7 @@ final class PrivacyMode {
         a.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         a.address.setImeOptions(a.address.getImeOptions()|android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         indicate();
-        if(!withTor){if(torSupported())ProxyController.getInstance().clearProxyOverride(Runnable::run,()->{});a.newTab(MainActivity.HOME);a.toast("Private mode on. Nothing from these tabs is kept.");return;}
+        if(!withTor){if(torSupported())ProxyController.getInstance().clearProxyOverride(a.getMainExecutor(),()->{});a.newTab(MainActivity.HOME);a.toast("Private mode on. Nothing from these tabs is kept.");return;}
         int mySession=session;
         // Fail closed first: no WebView request can leave the device until Tor is ready.
         proxy(DEAD_PROXY,()->{
@@ -120,7 +122,7 @@ final class PrivacyMode {
     }
     void proxy(String rule,Runnable done){
         ProxyConfig config=new ProxyConfig.Builder().addProxyRule(rule).removeImplicitRules().build();
-        ProxyController.getInstance().setProxyOverride(config,Runnable::run,done);
+        ProxyController.getInstance().setProxyOverride(config,a.getMainExecutor(),done);
     }
     void startTor(int mySession){
         torConnection=new ServiceConnection(){
@@ -150,7 +152,7 @@ final class PrivacyMode {
         if(!active||session!=mySession)return;
         new AlertDialog.Builder(a).setTitle(a.label("Tor unavailable",MainActivity.GOLD)).setMessage(message+"\n\nWebsites stay blocked so your IP address is not exposed. You can retry, continue privately without Tor, or leave private mode.")
             .setPositiveButton("Retry",(d,w)->{stopTor();if(active&&session==mySession)startTor(mySession);})
-            .setNeutralButton("Continue without Tor",(d,w)->{stopTor();usingTor=false;ProxyController.getInstance().clearProxyOverride(Runnable::run,()->{indicate();for(WebView v:a.tabs)v.reload();});})
+            .setNeutralButton("Continue without Tor",(d,w)->{stopTor();usingTor=false;ProxyController.getInstance().clearProxyOverride(a.getMainExecutor(),()->{indicate();for(WebView v:a.tabs)v.reload();});})
             .setNegativeButton("Leave private mode",(d,w)->exit()).setCancelable(false).show();
     }
     void stopTor(){
@@ -167,7 +169,7 @@ final class PrivacyMode {
         active=false;session++;
         for(WebView v:new ArrayList<>(a.tabs))a.discardTab(v,false);
         stopTor();
-        if(torSupported())ProxyController.getInstance().clearProxyOverride(Runnable::run,()->{});
+        if(torSupported())ProxyController.getInstance().clearProxyOverride(a.getMainExecutor(),()->{});
         a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
         a.address.setImeOptions(a.address.getImeOptions()&~android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         a.tabs.addAll(parked);WebView back=parkedCurrent;parked.clear();parkedCurrent=null;indicate();
@@ -191,7 +193,7 @@ final class PrivacyMode {
     /** Activity is going away: private data must not outlive it. */
     void close(){
         closed=true;
-        if(active){active=false;stopTor();if(torSupported())try{ProxyController.getInstance().clearProxyOverride(Runnable::run,()->{});}catch(RuntimeException ignored){}}
+        if(active){active=false;stopTor();if(torSupported())try{ProxyController.getInstance().clearProxyOverride(a.getMainExecutor(),()->{});}catch(RuntimeException ignored){}}
         for(WebView v:parked)try{v.destroy();}catch(RuntimeException ignored){}
         parked.clear();worker.shutdownNow();
     }

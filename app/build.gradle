@@ -6,8 +6,8 @@ android {
         applicationId 'com.ether4o4.voodoo'
         minSdk 29
         targetSdk 36
-        versionCode 16
-        versionName '0.3.9'
+        versionCode 17
+        versionName '0.3.10'
     }
     // CI signs development builds with one persistent key from repository secrets, so
     // preview updates install over each other. Local builds keep Android's debug key.
